@@ -1,61 +1,103 @@
-# FOLĒR Growth Agent
+# FOLĒR Pulse
 
-Internal tool for FOLĒR (early-stage hair & scalp tracking startup). It finds Reddit posts from people struggling to *measure or track* hair changes, qualifies them with an LLM (Claude, with a deterministic heuristic fallback), and manages a strict help-first workflow: qualify → proposed action → Telegram/dashboard approval → Reddit reply (or manual mode) → FOLĒR permission workflow → waitlist attribution.
+**Listen to how people describe health problems in the wild. Help them honestly. Map unmet needs at population scale.**
 
-## Help-first principles
+Every day thousands of people describe health struggles in public — what isn't working, what they can't tell, what they're afraid of — long before they see a clinician. FOLĒR Pulse turns that signal into two things:
 
-- A helpful reply that never mentions FOLĒR is a success.
-- The first reply in any thread is never about FOLĒR (`INTRODUCE_FOLER` / `WAITLIST_INVITE` / `DM` are gated down to `HELP` when we have no prior outbound reply in that thread).
-- FOLĒR may only be introduced after an explicit permission ask is granted by the person (`PERMISSION_REQUESTED` → `PERMISSION_GRANTED`), and the waitlist link only after they express interest (`INTEREST_DETECTED` → `WAITLIST_INVITED`).
-- Approval is human-gated: nothing posts without an explicit approve (Telegram button or dashboard). Preflight blocks (do-not-contact, duplicate contact, paused account, stale conversation) refuse approval.
+1. **Population intelligence** — a live, evidence-linked map of what people are actually struggling with: top problems, unmet needs, treatment confusion, how recent it is, where it's coming from.
+2. **Honest, human-approved help** — for the highest-signal conversations, an AI drafts a genuinely useful reply; a human approves or edits every word before anything is said. FOLĒR itself is only mentioned when the person asks.
 
-## Setup
+Today it listens to hair & scalp communities (FOLĒR's domain). The pipeline is **domain-neutral**: the taxonomy, prompts and dashboards can be pointed at diabetes, PCOS, vitamin D deficiency, mental health or any other condition without changing the architecture.
 
-1. **Node** v24 (via nvm), `npm install`.
-2. **Postgres**: create `foler_growth_agent` (and `foler_growth_agent_test` for tests) as the `foler` user, then `npx prisma db push` (`npm run test:db` handles the test DB).
-3. **`.env`** (see `.env.example`):
+> Principle: **Help first. Sell rarely.** A reply that never mentions FOLĒR is a success.
+
+---
+
+## What it does
+
+```
+public conversations ──▶ discover ──▶ AI analyze ──▶ Insights (population map)
+                                          │
+                                          └──▶ rank ──▶ draft reply ──▶ HUMAN approves/edits
+                                                                              │
+                                                              you post it ◀───┘
+                                                                  │
+                                                   monitor replies ──▶ re-analyze ──▶ follow-up (approval again)
+                                                                  │
+                                            person asks about FOLĒR? ──▶ introduce ──▶ waitlist ──▶ attribution
+```
+
+### 1. Listen — Insights
+`/insights` aggregates every analyzed conversation (not just leads) into a judge-ready view:
+- **Top problems people are trying to solve**, clustered into a 13-item domain-neutral taxonomy, each bar expandable to the real posts behind it.
+- **Struggles × treatments**, unmet needs, weekly signal, and an AI "population synthesis" brief.
+- **Data & method panel**: which communities, how many posts and comments, how far back, the search terms, and exactly how each % is computed (`share = tagged / analyzed`). Sample size is labelled honestly (`early signal` → `emerging` → `established`).
+
+### 2. Help — Outreach
+`/outreach` is the operating cockpit, four columns wide:
+
+| Needs your approval | Ready to post | Posted · waiting | They replied |
+|---|---|---|---|
+| Approve · Edit · Reject · Snooze | Copy · Open thread · "I posted it" | Check for replies | Draft follow-up (→ approval again) |
+
+Nothing is ever posted by the software. You approve, you copy, you paste from your own account, you confirm. The same loop is available from your phone via Telegram cards.
+
+### 3. Guardrails (non-negotiable)
+- **Human in the loop** on every outbound message; stale or conflicting approvals are refused.
+- **Help first**: the first reply in a thread can never mention FOLĒR (`INTRODUCE_FOLER` / `WAITLIST_INVITE` are gated down to `HELP`).
+- **Consent before product**: FOLĒR is introduced only after `PERMISSION_REQUESTED → PERMISSION_GRANTED`; a waitlist link only after `INTEREST_DETECTED`.
+- **Never engage minors**: self-reported under-18s are auto-marked do-not-contact.
+- **No medical claims**: prohibited-claim list enforced in prompts and gates; nothing diagnoses or evaluates treatments.
+- **No platform abuse**: no proxies, cookie/header spoofing, account rotation, retry-on-403, or auto-posting. Public-web reading is polite and stops on rate limits.
+- **Full audit trail**: every event (discovered, qualified, approved, posted, replied, introduced, invited, signed up) is recorded.
+
+---
+
+## Why this matters beyond hair
+
+Clinical data systems know what happens *inside* the health system. FOLĒR Pulse captures the layer before that: what people say when they're confused, scared, or self-treating. For health leaders and prevention programmes this is an early-warning and unmet-needs map; for a company it is the most honest form of product discovery. Swap the search terms and taxonomy and the same engine listens to a different condition — in any language the underlying LLM understands.
+
+---
+
+## Stack
+
+Next.js 14 (App Router) · TypeScript · Tailwind · Prisma 6 + PostgreSQL (Supabase) · Anthropic Claude (with deterministic heuristic fallback) · Telegram Bot API · Vitest · Vercel.
+
+Reddit access is behind a provider abstraction: `mock` (labelled demo data), `public_web` (read-only RSS/JSON, no posting), `official_api` (OAuth script app, optional), `manual` (paste replies by hand).
+
+---
+
+## Run it locally
+
+1. Node 24 (`nvm use`), `npm install`.
+2. Postgres: create `foler_growth_agent` (and `foler_growth_agent_test`), then `npx prisma db push`.
+3. `.env` (see `.env.example`):
    - `DATABASE_URL` — required.
-   - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` — optional; without a key the heuristic analyzer runs (clearly labelled in output).
-   - `TELEGRAM_BOT_TOKEN` — create a bot via BotFather; `TELEGRAM_CHAT_ID` — send `/start` to the bot and it replies with the chat id; `TELEGRAM_MODE` (`polling` default, or `webhook` + `TELEGRAM_WEBHOOK_SECRET`).
-   - `REDDIT_PROVIDER` — `mock` (built-in demo dataset), `public_web` (read-only scraping of public JSON/RSS, polite 2s spacing, no posting → manual mode), or `official_api` (OAuth script app; needs `REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD`). `REDDIT_USER_AGENT`, `REDDIT_OUR_USERNAME`.
-   - `APP_BASE_URL`, `ATTRIBUTION_WEBHOOK_SECRET`.
-   - `TEST_DATABASE_URL` — optional; defaults to `DATABASE_URL` with the name swapped for `foler_growth_agent_test`.
-4. `npm run db:seed`-equivalent: `npx prisma db seed` — seeds search categories, communities, account health, knowledge-base defaults, and (non-production) ingests 6 labelled `[MOCK]` demo conversations and qualifies them.
-
-## Commands
+   - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` — optional; without a key the labelled heuristic analyzer runs.
+   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (send `/start` to your bot, it replies with the id), `TELEGRAM_MODE` (`polling` | `webhook` + `TELEGRAM_WEBHOOK_SECRET`).
+   - `REDDIT_PROVIDER` (`mock` | `public_web` | `official_api`), `REDDIT_USER_AGENT`, `REDDIT_OUR_USERNAME`.
+   - `APP_BASE_URL`, `DASHBOARD_PASSWORD`, `ATTRIBUTION_WEBHOOK_SECRET`, `CRON_SECRET`.
+4. `npx prisma db seed` — search categories, communities, knowledge base, and (non-production) 6 labelled `[MOCK]` conversations.
+5. `npm run dev` → http://localhost:3000
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Next.js dev server on :3000 (starts Telegram poller via instrumentation hook) |
-| `npx prisma db seed` | Seed config + mock conversations |
-| `npm run discover` | Run one discovery sweep (searches → ingest → qualify → copilot actions) |
-| `npm test` | Vitest against the test DB (`pretest` syncs its schema) |
-| `npm run test:db` | Push schema to the test DB |
-| `npm run lint` / `npm run typecheck` / `npm run build` | Usual checks |
+| `npm run dev` | Dev server (starts Telegram poller) |
+| `npm run discover` | One discovery sweep: search → ingest → analyze → draft actions |
+| `npm test` | Vitest against the test DB |
+| `npm run lint` / `npm run typecheck` / `npm run build` | Checks |
+| `npm run telegram:webhook` | Register/delete the Telegram webhook |
 
-## End-to-end workflow
+## Deploy
 
-1. **Discovery** searches enabled `SearchCategory` terms across enabled `CommunityConfig` subreddits (provider-respecting; rate limits pause outbound automatically).
-2. **Ingest** dedupes posts/comments into Lead/Conversation/Message; each new conversation is qualified (score breakdown, category HOT/WARM/COLD/IGNORE, recommended action).
-3. **Copilot** (`generateActionsForCandidates` / "Generate action") creates a PROPOSED `Action` and sends a Telegram approval card (Approve / Edit / Reject / Snooze / open dashboard). Edited replies become `finalResponse`.
-4. **Approval** is stale-guarded (conversation version) and preflight-guarded (do-not-contact, pending action, recent outbound, paused account).
-5. **Execution** posts via the provider, or becomes `MANUAL_REQUIRED` with a copy-paste panel + "Mark as Posted" for `public_web`.
-6. **Monitoring** refreshes active conversations (`refreshAll`); new inbound replies trigger `USER_REPLIED` → re-analysis → new proposed action. When Reddit is unreachable, "Import reply manually" feeds the same path.
-7. **Attribution**: waitlist invites embed `source/subreddit/lead_id/conversation_id/campaign`; optionally routed through `/api/waitlist/go` (records click → 302 redirect) when setting `attribution.useRedirect` is `"true"`. Signups arrive via `POST /api/waitlist/signup` (header `x-webhook-secret` = `ATTRIBUTION_WEBHOOK_SECRET`) or self-reported replies → `Conversion.signedUpAt` + `WAITLIST_SIGNUP` stage.
+Vercel + Supabase Postgres. Set the env vars above in Vercel (use the Supabase **transaction pooler** URL with `?pgbouncer=true&connection_limit=1`), set `vercel.json` `regions` to the region of your database, run `npx prisma db push` once from a laptop, then `npm run telegram:webhook`. `POST /api/cron/run` (header `x-cron-secret`) runs one cycle: monitor replies → discover → draft actions; `vercel.json` registers a daily cron and `.github/workflows/scheduler.yml` can call it every 30 min.
 
-## Deploy (Vercel + Neon)
+Note: Reddit blocks anonymous reads from most cloud IPs, so `public_web` discovery generally has to run from a laptop (`npm run discover` pointed at the production `DATABASE_URL`) or via the official API.
 
-1. **Neon**: create a Postgres project → `DATABASE_URL`. From a laptop: `npx prisma db push` then `npx prisma db seed` (set `SEED_MOCK=` empty to skip demo data).
-2. **Vercel**: import the GitHub repo. Env vars: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `APP_BASE_URL` (your https domain), `CRON_SECRET`, `DASHBOARD_PASSWORD` (HTTP Basic on the dashboard), `ATTRIBUTION_WEBHOOK_SECRET`, `REDDIT_OUR_USERNAME`, `REDDIT_USER_AGENT`.
-3. **Telegram**: `npm run telegram:webhook` (registers `${APP_BASE_URL}/api/telegram/webhook`; `--delete` to switch back to polling).
-4. **Scheduling**: GitHub Actions `.github/workflows/scheduler.yml` hits `POST /api/cron/run` every 30 min — add repo secrets `CRON_SECRET` + `APP_BASE_URL`. `vercel.json` also registers a daily fallback cron. Locally, `SCHEDULER_INTERVAL_MINUTES>0` runs the same cycle in-process. Each cycle: reply monitoring → discovery → copilot actions.
+## Attribution
+
+Waitlist invites carry `source / subreddit / lead_id / conversation_id / campaign`, optionally via `/api/waitlist/go` (records click → redirect). Signups arrive at `POST /api/waitlist/signup` (header `x-webhook-secret`) and close the loop to `WAITLIST_SIGNUP`.
 
 ## Mock data
 
-All demo content is clearly labelled: authors prefixed `mock_`, post titles prefixed `[MOCK] `, leads flagged `isMock` (amber "MOCK DATA" badge in the UI).
-
-## Deliberately not built
-
-- No Reddit anti-abuse bypass: no proxies, cookies, header spoofing, account rotation, or retry-on-403. `public_web` enforces ≥2s between requests and stops on 429.
-- No auto-posting: every outbound message requires human approval.
-- No medical claims: prohibited-claim list is enforced via prompt + gates; nothing diagnoses or evaluates treatments.
+Demo content is unmistakable: authors prefixed `mock_`, titles prefixed `[MOCK]`, leads flagged `isMock` with an amber badge in the UI.
