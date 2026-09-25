@@ -18,3 +18,155 @@ body {
   color: var(--foreground);
   background: var(--background);
 }
+
+/* ============================================================
+   Pulse (Insights) — FOLĒR website design language
+   ============================================================ */
+.pulse {
+  --ink: #262827;
+  --ivory: #f4f3ee;
+  --stone: #e5e7e1;
+  --sage: #dde5dd;
+  --mist: #b6bab4;
+  --warn: #e3c3a0;
+  --good: #b9d6b9;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  margin: -20px;
+  padding: 40px clamp(20px, 4vw, 64px) 96px;
+  min-height: calc(100vh - 41px);
+  color: rgba(255, 255, 255, 0.92);
+  background:
+    radial-gradient(60% 40% at 80% 0%, rgba(221, 229, 221, 0.16), transparent 70%),
+    radial-gradient(50% 35% at 10% 30%, rgba(227, 195, 160, 0.1), transparent 70%),
+    linear-gradient(180deg, #2c2d2b 0%, #232322 45%, #1f1d1e 100%);
+  font-feature-settings: "cv05" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+}
+.pulse-wrap { max-width: 1280px; margin-inline: auto; }
+.pulse-eyebrow {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+.pulse-eyebrow[data-tone="warn"] { color: var(--warn); }
+.pulse-eyebrow[data-tone="good"] { color: var(--good); }
+.pulse-h1 {
+  font-weight: 700;
+  font-size: clamp(40px, 4.4vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.032em;
+  margin: 0;
+}
+.pulse-h1 .dim { color: rgba(229, 231, 225, 0.35); }
+.pulse-lead {
+  font-weight: 300;
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.68);
+  max-width: 560px;
+}
+.pulse-body { font-size: 13px; line-height: 1.55; color: rgba(255, 255, 255, 0.68); }
+.pulse-muted { color: rgba(255, 255, 255, 0.4); }
+.pulse-metric {
+  font-weight: 600;
+  font-size: clamp(36px, 3.6vw, 56px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.pulse-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+}
+.pulse-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 32px;
+  --top: rgba(66, 54, 51, 0.9);
+  --mid: rgba(31, 29, 30, 0.86);
+  --end: rgba(40, 35, 34, 0.9);
+  background: linear-gradient(180deg, var(--top) 0%, var(--mid) 32%, var(--end) 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(32px) saturate(120%);
+  backdrop-filter: blur(32px) saturate(120%);
+  color: rgba(255, 255, 255, 0.95);
+  min-width: 0;
+}
+.pulse-card[data-hue="slate"] { --top: rgba(64, 58, 58, 0.9); --mid: rgba(27, 30, 36, 0.88); --end: rgba(32, 38, 46, 0.9); }
+.pulse-card[data-hue="sage"] { --top: rgba(70, 78, 70, 0.9); --mid: rgba(30, 34, 31, 0.88); --end: rgba(36, 42, 37, 0.9); }
+.pulse-card[data-hue="hero"] {
+  --top: rgba(74, 66, 62, 0.86);
+  --mid: rgba(38, 40, 39, 0.8);
+  --end: rgba(44, 45, 43, 0.9);
+  padding: clamp(28px, 4vw, 56px);
+  border-radius: 40px;
+  overflow: hidden;
+}
+.pulse-card::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  border-radius: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(86, 73, 70, 0.4) 0%, rgba(58, 60, 66, 0.44) 55%, rgba(38, 34, 33, 0.5) 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+.pulse-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.pulse-title { font-size: 15px; font-weight: 500; line-height: 1.2; color: rgba(255, 255, 255, 0.92); margin: 0; }
+.pulse-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 999px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.005em;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(244, 243, 238, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transition: background 180ms var(--ease), color 180ms var(--ease);
+  text-decoration: none; cursor: pointer;
+}
+.pulse-pill:hover { background: rgba(244, 243, 238, 0.16); color: #fff; }
+.pulse-pill[data-on="true"] { background: var(--ivory); color: var(--ink); border-color: transparent; }
+.pulse-track { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.pulse-fill { height: 100%; border-radius: 999px; background: var(--sage); transform-origin: left; transform: scaleX(0); transition: transform 1100ms var(--ease); }
+.pulse-fill[data-tone="warn"] { background: var(--warn); }
+.pulse-fill[data-tone="dim"] { background: rgba(255, 255, 255, 0.35); }
+[data-active="true"] .pulse-fill { transform: scaleX(1); }
+.pulse-reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
+.pulse-reveal[data-active="true"] { opacity: 1; transform: none; }
+.pulse-quote {
+  font-weight: 300;
+  font-size: clamp(20px, 1.9vw, 28px);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: rgba(255, 255, 255, 0.92);
+}
+.pulse-fade { animation: pulseFade 700ms var(--ease) both; }
+@keyframes pulseFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pulse-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(221, 229, 221, 0.35); animation: pulseRing 6s var(--ease) infinite; }
+@keyframes pulseRing { 0% { transform: scale(0.2); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
+.pulse a.src { color: rgba(255, 255, 255, 0.5); text-decoration: none; border-bottom: 1px solid rgba(255, 255, 255, 0.15); }
+.pulse a.src:hover { color: #fff; border-color: #fff; }
+.pulse details > summary { list-style: none; cursor: pointer; }
+.pulse details > summary::-webkit-details-marker { display: none; }
+.pulse-btn {
+  padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 500;
+  color: rgba(255, 255, 255, 0.85); background: rgba(244, 243, 238, 0.08); border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.pulse-btn:hover { background: rgba(244, 243, 238, 0.16); }
+.pulse table { border-collapse: collapse; }
+.pulse .cell { display: inline-block; min-width: 30px; padding: 4px 6px; border-radius: 8px; text-align: center; font-variant-numeric: tabular-nums; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) {
+  .pulse-reveal, .pulse-fill { transition: none; }
+  .pulse-reveal { opacity: 1; transform: none; }
+  .pulse-fill { transform: scaleX(1); }
+  .pulse-ring, .pulse-fade { animation: none; }
+}
