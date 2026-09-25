@@ -3,7 +3,7 @@ import { computeInsights } from "@/lib/insights/aggregate";
 import { getSynthesis } from "@/lib/insights/synthesis";
 import { STRUGGLE_LABELS, type StruggleTag } from "@/lib/insights/taxonomy";
 import { ActionButton } from "@/components/buttons";
-import { regenerateSynthesisAction, backfillInsightsAction } from "../actions";
+import { regenerateSynthesisAction } from "../actions";
 import { Inter } from "next/font/google";
 import { Reveal, Metric, Voices, Rings, Ranked, Flow } from "./Visuals";
 
@@ -98,6 +98,13 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
           <p className="pulse-lead relative mt-6">
             Every day people describe unmet health needs in public. Pulse reads those conversations, maps the problems at population level, and helps each person — with a human approving every reply.
           </p>
+          <div className="pulse-pipeline relative mt-6">
+            <span><b>Search</b> {m.monitoredCommunities.length} communities · {m.searchTerms} terms</span>
+            <span><b>Keep</b> ≤ {m.scanWindowDays} days · unseen</span>
+            <span><b>Read</b> post + comments</span>
+            <span><b>Classify</b> with Claude</span>
+            <span><b>Reply</b> only with human approval</span>
+          </div>
           <div className="relative mt-12 grid grid-cols-2 gap-8 md:grid-cols-4">
             <Metric value={totals.people} label="people heard" sub={`${m.posts} posts · ${m.comments} comments read`} />
             <Metric value={totals.analyzed} label="conversations analyzed" sub={`${totals.communities} communities`} />
@@ -123,11 +130,10 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
           <Reveal hue="slate" delay={180}>
             <Head title="Key findings" sub={synthesis.generatedAt ? `AI synthesis · ${fmtDate(synthesis.generatedAt)}` : "AI synthesis"} />
             {synthesis.markdown ? (
-              <div className="space-y-1.5 text-[13px]">{renderMarkdown(synthesis.markdown)}</div>
+              <div className="pulse-scroll space-y-1.5 text-[13px]">{renderMarkdown(synthesis.markdown)}</div>
             ) : <div className="pulse-muted text-[13px]">Not generated yet.</div>}
             <div className="mt-5 flex gap-2">
-              <ActionButton label="Regenerate findings" action={regenerateSynthesisAction} className="pulse-btn" />
-              <ActionButton label="Classify new conversations" action={backfillInsightsAction} className="pulse-btn" />
+              <ActionButton label="Rewrite findings from current data" title="Claude re-reads all classified conversations and rewrites this brief" action={regenerateSynthesisAction} className="pulse-btn" />
             </div>
           </Reveal>
         </div>
@@ -140,6 +146,15 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
         <Reveal hue="slate" className="col-span-12 xl:col-span-5" delay={120}>
           <Head title="Data & method" sub="how the numbers are made" />
           <div className="space-y-5">
+            <div>
+              <div className="pulse-eyebrow mb-2">How posts are selected</div>
+              <ol className="pulse-steps">
+                <li><b>Search</b> {m.monitoredCommunities.length} communities with {m.searchTerms} fixed terms, newest first — nothing is hand-picked.</li>
+                <li><b>Keep</b> posts ≤ {m.scanWindowDays} days old that we have not read before.</li>
+                <li><b>Read</b> the full thread: post + every comment.</li>
+                <li><b>Classify</b> each one with {m.model}; all {totals.analyzed} analyzed conversations count, whether or not we reply.</li>
+              </ol>
+            </div>
             <div>
               <div className="pulse-eyebrow mb-2">Source pool</div>
               <Bars rows={m.sources.map((s) => ({ key: `r/${s.key}`, count: s.count }))} unit={(n) => `${n} conv.`} />
@@ -156,7 +171,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
                   </div>
                 ))}
               </div>
-              <div className="pulse-muted mt-2 text-[12px]">Discovery ingests posts ≤ {m.scanWindowDays} days old; tracked threads are re-checked every 30 min.</div>
+              <div className="pulse-muted mt-2 text-[12px]">Discovery runs every 30 min; threads we replied in are re-checked on the same schedule.</div>
             </div>
             <details>
               <summary className="pulse-eyebrow">Search terms ({m.searchTerms}) ▸</summary>

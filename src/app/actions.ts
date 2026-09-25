@@ -12,83 +12,107 @@ import { importConversationFromText, importConversationFromUrl } from "@/lib/red
 import { isTelegramConfigured, sendMessage } from "@/lib/telegram/client";
 import { env } from "@/lib/env";
 
+const REDDIT_BLOCKED = /403|429|blocked|rate limited|forbidden/i;
+const REDDIT_BLOCKED_MSG = "Reddit refuses requests from this server — this runs from the local agent every 30 min instead.";
+
+function refreshLists() {
+  revalidatePath("/");
+  revalidatePath("/conversations");
+  revalidatePath("/people");
+  revalidatePath("/outreach");
+}
+
 export async function runDiscoveryAction() {
   const r = await runDiscovery();
   revalidatePath("/");
-  return r;
+  const blocked = r.scanned === 0 && r.errors.some((e) => REDDIT_BLOCKED.test(e));
+  const message = blocked
+    ? REDDIT_BLOCKED_MSG
+    : `Read ${r.scanned} posts · ${r.newConversations} new ${r.newConversations === 1 ? "person" : "people"}${r.errors.length ? ` · ${r.errors.length} errors` : ""}`;
+  revalidatePath("/people");
+  return { ...r, message };
 }
 
 export async function runCopilotAction() {
   const n = await generateActionsForCandidates();
   revalidatePath("/");
-  return { generated: n };
+  revalidatePath("/outreach");
+  const message = n === 0 ? "Nothing new to draft — every analyzed conversation already has a reply." : `Drafted ${n} ${n === 1 ? "reply" : "replies"} — waiting for your approval in Outreach.`;
+  return { generated: n, message };
 }
 
 export async function refreshAllAction() {
   const r = await refreshAll();
   revalidatePath("/");
-  return r;
+  const blocked = r.refreshed === 0 && (r.manual > 0 || r.errors.some((e) => REDDIT_BLOCKED.test(e)));
+  const message = blocked
+    ? REDDIT_BLOCKED_MSG
+    : r.refreshed === 0
+      ? "No open threads to check."
+      : `Checked ${r.refreshed} ${r.refreshed === 1 ? "thread" : "threads"} for new replies.`;
+  return { ...r, message };
 }
 
 export async function approveActionForm(actionId: string, finalResponse?: string) {
   const r = await approveAction(actionId, { by: "dashboard", finalResponse });
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
-  return r;
+  refreshLists();
+  return { ...r, message: r.ok ? "Approved — now copy it and post it on Reddit." : `Not approved: ${r.reason}` };
 }
 
 export async function rejectActionForm(actionId: string) {
   await rejectAction(actionId, { by: "dashboard" });
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
+  refreshLists();
+  return { message: "Rejected — this draft won't be posted." };
 }
 
 export async function snoozeActionForm(actionId: string, hours = 24) {
   await snoozeAction(actionId, hours);
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
+  refreshLists();
+  return { message: `Snoozed — comes back in ${hours}h.` };
 }
 
 export async function markPostedForm(actionId: string) {
   await markPosted(actionId, { by: "dashboard" });
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
+  refreshLists();
+  return { message: "Marked as posted — the agent now watches this thread for replies." };
 }
 
 export async function generateActionForm(conversationId: string) {
   const a = await generateAction(conversationId);
-  if (!a) {
-    revalidatePath(`/conversations/${conversationId}`);
-  revalidatePath("/outreach");
-    return "No action recommended";
-  }
-  await requestApproval(a.id);
   revalidatePath(`/conversations/${conversationId}`);
-  revalidatePath("/outreach");
-  return "Action created — sent for approval";
+  refreshLists();
+  if (!a) return { message: "No reply drafted — the AI recommends not replying here (or a safety gate blocked it)." };
+  await requestApproval(a.id);
+  return { message: "Reply drafted — waiting for your approval." };
 }
 
 export async function reanalyzeForm(conversationId: string) {
   await qualifyConversation(conversationId, { force: true });
   revalidatePath(`/conversations/${conversationId}`);
-  revalidatePath("/outreach");
+  refreshLists();
+  return { message: "Re-read the thread and updated the analysis." };
 }
 
 export async function refreshConversationForm(conversationId: string) {
   const r = await refreshConversation(conversationId);
   revalidatePath(`/conversations/${conversationId}`);
-  revalidatePath("/outreach");
-  return r;
+  refreshLists();
+  const message = !r.ok
+    ? REDDIT_BLOCKED_MSG
+    : r.newMessages
+      ? `${r.newMessages} new ${r.newMessages === 1 ? "comment" : "comments"} picked up.`
+      : "Checked — nothing new in the thread.";
+  return { ...r, message };
 }
 
 export async function importReplyForm(conversationId: string, formData: FormData) {
   const author = String(formData.get("author") ?? "");
   const content = String(formData.get("content") ?? "");
-  if (!author || !content) return { ok: false };
+  if (!author || !content) return { ok: false, message: "Author and text are required." };
   await importReplyManually(conversationId, { author, content });
   revalidatePath(`/conversations/${conversationId}`);
-  revalidatePath("/outreach");
-  return { ok: true };
+  refreshLists();
+  return { ok: true, message: "Reply added and analyzed." };
 }
 
 export async function saveSetting(key: string, value: string) {
@@ -121,12 +145,13 @@ export async function addCommunity(name: string) {
 export async function resumeOutboundAction() {
   await resumeOutbound();
   revalidatePath("/settings");
+  revalidatePath("/");
+  return { message: "Outbound resumed." };
 }
 
 export async function importRedditUrlForm(url: string) {
   const r = await importConversationFromUrl(url);
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
+  refreshLists();
   return r;
 }
 
@@ -139,8 +164,7 @@ export async function pastePostForm(formData: FormData) {
     body: String(formData.get("body") ?? ""),
     createdAt: new Date(String(formData.get("createdAt") ?? Date.now())),
   });
-  revalidatePath("/conversations");
-  revalidatePath("/outreach");
+  refreshLists();
   return { conversationId: r.conversationId };
 }
 
@@ -148,25 +172,26 @@ export async function regenerateSynthesisAction() {
   const { generateSynthesis } = await import("@/lib/insights/synthesis");
   const md = await generateSynthesis();
   revalidatePath("/insights");
-  return md;
+  return { message: md.startsWith("Synthesis unavailable") ? md : "Key findings rewritten from the current data." };
 }
 
-export async function backfillInsightsAction() {
-  const { backfillInsights } = await import("@/lib/insights/backfill");
-  const n = await backfillInsights({ limit: 20 });
-  revalidatePath("/insights");
-  return n;
-}
 
 export async function runCycleNowAction() {
   const { runScheduledCycle } = await import("@/lib/scheduler");
   const r = await runScheduledCycle();
   revalidatePath("/settings");
-  return r;
+  revalidatePath("/");
+  if (r.skipped) return { ...r, message: "A cycle is already running." };
+  const blocked = r.errors.some((e) => REDDIT_BLOCKED.test(e)) && (r.discovery?.scanned ?? 0) === 0;
+  const message = blocked
+    ? REDDIT_BLOCKED_MSG
+    : `Done in ${Math.round(r.durationMs / 1000)}s — ${r.discovery?.newConversations ?? 0} new people, ${r.actionsGenerated} replies drafted, ${r.monitoring?.refreshed ?? 0} threads checked.`;
+  return { ...r, message };
 }
 
 export async function sendTestTelegram() {
-  if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return { ok: false };
+  if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return { ok: false, message: "Telegram is not configured on this server." };
   const res = await sendMessage(env.TELEGRAM_CHAT_ID, "FOLĒR Pulse test message ✅");
-  return { ok: Boolean(res?.ok) };
+  const ok = Boolean(res?.ok);
+  return { ok, message: ok ? "Sent — check your Telegram." : "Telegram rejected the message." };
 }

@@ -4,7 +4,7 @@ export function Funnel({ steps }: { steps: { label: string; count: number }[] })
     <div className="space-y-1">
       {steps.map((s) => (
         <div key={s.label} className="flex items-center gap-3">
-          <span className="w-36 text-[11px] uppercase tracking-wide text-zinc-500">{s.label}</span>
+          <span className="w-36 text-[12px] text-zinc-500">{s.label}</span>
           <div className="h-4 rounded-sm bg-zinc-200" style={{ width: `${Math.max(2, (s.count / max) * 300)}px` }} />
           <span className="text-[12px] font-medium tabular-nums text-zinc-700">{s.count}</span>
         </div>
@@ -13,10 +13,11 @@ export function Funnel({ steps }: { steps: { label: string; count: number }[] })
   );
 }
 
-export function Card({ title, children }: { title: string; children: React.ReactNode }) {
+export function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4">
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{title}</h2>
+      <h2 className={`text-[11px] font-semibold uppercase tracking-wider text-zinc-400 ${hint ? "mb-1" : "mb-3"}`}>{title}</h2>
+      {hint && <p className="mb-3 text-[12px] text-zinc-500">{hint}</p>}
       {children}
     </section>
   );

@@ -170,3 +170,71 @@ body {
   .pulse-fill { transform: scaleX(1); }
   .pulse-ring, .pulse-fade { animation: none; }
 }
+
+/* Findings brief: capped height with its own scroll so the row never stretches. */
+.pulse-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 40px), transparent);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.pulse-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 8px;
+}
+.pulse-steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 30px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.68);
+}
+.pulse-steps li b { color: #fff; font-weight: 600; }
+.pulse-steps li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--sage);
+}
+
+.pulse-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.pulse-pipeline span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+.pulse-pipeline span b { color: #fff; font-weight: 600; }
+.pulse-pipeline span + span {
+  position: relative;
+  margin-left: 22px;
+}
+.pulse-pipeline span + span::before {
+  content: "→";
+  position: absolute;
+  left: -17px;
+  color: rgba(255, 255, 255, 0.3);
+}

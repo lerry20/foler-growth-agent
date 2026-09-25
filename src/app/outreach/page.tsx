@@ -83,11 +83,7 @@ export default async function OutreachPage() {
   cols.post.sort((a, b) => b.leadScore - a.leadScore);
 
   const stats = [
-    { label: "Needs approval", value: cols.approve.length },
-    { label: "Ready to post", value: cols.post.length },
-    { label: "Awaiting reply", value: cols.waiting.length },
-    { label: "Replied", value: cols.reply.length },
-    { label: "Posted (24h)", value: postedToday },
+    { label: "Posted last 24h", value: postedToday },
     { label: "Waitlist signups", value: signups },
   ];
 
@@ -96,29 +92,21 @@ export default async function OutreachPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Outreach</h1>
-          <p className="text-[12px] text-zinc-500">
-            Find people with the problem → draft a genuinely helpful reply → <b>you</b> approve and post → the agent tracks replies and follows up. Help first, sell rarely.
-          </p>
+          <p className="text-[13px] text-zinc-500">Left to right: approve → post → wait → follow up. Nothing is posted without you.</p>
         </div>
         <div className="flex items-center gap-2">
-          <ActionButton label="Draft replies for new leads" action={runCopilotAction} />
-          <ActionButton label="Check all threads for replies" action={refreshAllAction} className="rounded-md border border-zinc-300 px-3 py-1.5 text-[12px] text-zinc-700 hover:bg-zinc-100" />
+          <ActionButton label="Draft replies" action={runCopilotAction} />
+          <ActionButton label="Check for replies" action={refreshAllAction} className="rounded-md border border-zinc-300 px-3 py-1.5 text-[12px] text-zinc-700 hover:bg-zinc-100" />
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wide text-zinc-400">{s.label}</div>
-            <div className="text-lg font-semibold tabular-nums">{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {(health?.outboundPaused || blocked > 0) && (
+      {(health?.outboundPaused || blocked > 0 || stats.some((s) => s.value > 0)) && (
         <div className="flex flex-wrap gap-2 text-[11px]">
+          {stats.filter((s) => s.value > 0).map((s) => (
+            <span key={s.label} className="rounded bg-white px-2 py-1 text-zinc-600 ring-1 ring-zinc-200"><b className="tabular-nums">{s.value}</b> {s.label.toLowerCase()}</span>
+          ))}
           {health?.outboundPaused && <span className="rounded bg-red-100 px-2 py-1 text-red-700">Outbound paused{health.pausedReason ? `: ${health.pausedReason}` : ""}</span>}
-          {blocked > 0 && <span className="rounded bg-zinc-100 px-2 py-1 text-zinc-600">{blocked} draft{blocked > 1 ? "s" : ""} held back by help-first gates (see <Link href="/conversations" className="underline">Conversations</Link>)</span>}
+          {blocked > 0 && <span className="rounded bg-zinc-100 px-2 py-1 text-zinc-600">{blocked} draft{blocked > 1 ? "s" : ""} held back by help-first gates (see <Link href="/people?status=held" className="underline">People</Link>)</span>}
         </div>
       )}
 

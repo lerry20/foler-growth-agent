@@ -63,8 +63,8 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
     start(async () => {
       try {
         const r = await fn();
-        const failed = r && typeof r === "object" && "ok" in r && (r as { ok: boolean }).ok === false;
-        setMsg(failed ? ((r as { reason?: string }).reason ?? "Failed") : okMsg);
+        const server = r && typeof r === "object" && "message" in r ? (r as { message?: string }).message : undefined;
+        setMsg(server ?? okMsg);
       } catch (e) {
         setMsg(e instanceof Error ? e.message : String(e));
       }
@@ -146,7 +146,7 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
           <div className="line-clamp-3 rounded border border-emerald-100 bg-emerald-50 p-2 text-[12px] text-zinc-700 [overflow-wrap:anywhere]">{item.text}</div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button disabled={pending} className={ghost} onClick={() => run(() => refreshConversationForm(item.conversationId), "Checked — no new reply yet")}>Check for replies</button>
-            <Link href={`/conversations/${item.conversationId}`} className={ghost}>Import reply manually</Link>
+            <Link href={`/conversations/${item.conversationId}`} className={ghost} title="Open the conversation; you can paste a reply by hand there if Reddit is blocked">Open</Link>
           </div>
         </>
       )}
