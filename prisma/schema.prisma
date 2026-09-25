@@ -82,6 +82,21 @@ enum MessageDirection {
   OUTBOUND
 }
 
+enum VoiceRole {
+  OP
+  COMMENTER
+}
+
+/// What a voice (one author in one thread) is talking about.
+enum SpeaksAbout {
+  OWN_CASE
+  SOMEONE_ELSE
+  ADVICE_ONLY
+  VENDOR
+  META
+  UNCLEAR
+}
+
 enum EventType {
   LEAD_DISCOVERED
   LEAD_QUALIFIED
@@ -168,6 +183,7 @@ model Conversation {
   unmetNeed        String        @default("")
   snoozedUntil     DateTime?
   messages         Message[]
+  voices           Voice[]
   actions          Action[]
   events           Event[]
   conversions      Conversion[]
@@ -194,6 +210,33 @@ model Message {
 
   @@unique([conversationId, redditId])
   @@index([conversationId, postedAt])
+}
+
+/// One person in one thread: the OP or a commenter, with everything they wrote there.
+/// Unit of analysis for population insights; classified independently of the thread.
+model Voice {
+  id                String       @id @default(cuid())
+  conversationId    String
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author            String
+  role              VoiceRole
+  messageIds        String[]     @default([])
+  wordCount         Int          @default(0)
+  speaksAbout       SpeaksAbout?
+  inScope           Boolean?
+  minor             Boolean?
+  gateWhy           String       @default("")
+  gateProvider      String?
+  gatedAt           DateTime?
+  classifierVersion String       @default("v2")
+  struggleEvidence  Json         @default("[]")
+  needsReview       Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@unique([conversationId, author])
+  @@index([speaksAbout, inScope])
+  @@index([needsReview])
 }
 
 model Action {

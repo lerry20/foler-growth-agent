@@ -12,6 +12,7 @@
     "pretest": "npm run test:db",
     "test:db": "node scripts/test-db.mjs",
     "discover": "tsx scripts/discover.ts",
+    "voices": "tsx scripts/voices.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
