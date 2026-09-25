@@ -18,12 +18,12 @@ export interface GateContext {
 }
 
 const MINOR_PATTERNS = [
-  /\b(?:i'?m|i am|im)\s+(?:a\s+)?1[0-7]\b(?!\s*(?:months?|weeks?|years?\s+(?:on|into|of)))/i,
+  /\b(?:i'?m|i am|im)\s+(?:a\s+)?1[0-7]\b(?!\s*(?:months?|weeks?|days?|years?\s+(?:on|into|of)))/i,
   /(?:^|[\s("'—–-])1[0-7]\s*[mf]\b/i,
   /\b1[0-7]\s*(?:yo|y\/o|years?\s+old)\b/i,
   /\b(?:as a|being a)\s+1[0-7]\s+year\s+old\b/i,
-  /\b(?:i'?m|i am)\s+(?:only\s+)?1[0-7]\b/i,
-  /\bi'?m a minor\b|\bunder 18\b|\bstill in (?:middle|high) school\b/i,
+  /\b(?:i'?m|i am)\s+(?:only\s+)?1[0-7]\b(?!\s*(?:months?|weeks?|days?|years?\s+(?:on|into|of)))/i,
+  /\bi'?m a minor\b|\bunder 18\b(?!\s*(?:months?|weeks?))|\bstill in (?:middle|high) school\b/i,
 ];
 
 export function detectsMinor(text: string): boolean {
