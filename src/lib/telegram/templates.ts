@@ -43,11 +43,24 @@ export function approvalMessageHtml(
     `<b>Suggested response:</b>\n"${esc(action.proposedResponse)}"`,
     "",
     extra.manualMode
-      ? "⚠️ Manual posting mode: approving will mark this as MANUAL ACTION REQUIRED in the dashboard."
+      ? "✍️ Manual posting: after Approve you'll get the final text to copy + a link to the thread. Paste it from your own Reddit account, then tap “I posted it”."
       : "Approving will post this reply to Reddit automatically.",
     `<code>action:${action.id}</code>`,
   ];
   return lines.join("\n");
+}
+
+export function manualPostHtml(action: Action, conversation: Conversation): string {
+  const text = action.finalResponse ?? action.proposedResponse;
+  return [
+    "✍️ <b>Ready to post</b> — r/" + esc(conversation.subreddit),
+    esc(conversation.title),
+    "",
+    "Tap the text to copy it, open the thread, paste it as a comment from your account, then tap “I posted it”.",
+    "",
+    `<pre>${esc(text)}</pre>`,
+    `<code>action:${action.id}</code>`,
+  ].join("\n");
 }
 
 export function decisionSuffixHtml(status: string, by: string): string {
