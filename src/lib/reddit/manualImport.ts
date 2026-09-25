@@ -10,9 +10,9 @@ export function parseRedditUrl(url: string): { subreddit: string; postId: string
 }
 
 export async function importConversationFromUrl(url: string) {
-  const { postId } = parseRedditUrl(url);
+  const { postId, subreddit } = parseRedditUrl(url);
   const provider = await getRedditProvider();
-  const convo = await provider.getConversation(postId);
+  const convo = await provider.getConversation(postId, { subreddit });
   return ingestConversation(convo.post, convo.comments, "MANUAL_IMPORT");
 }
 

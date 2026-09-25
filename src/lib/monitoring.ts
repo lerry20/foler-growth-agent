@@ -29,7 +29,7 @@ export async function refreshConversation(conversationId: string): Promise<{ ok:
     orderBy: { postedAt: "desc" },
   });
   try {
-    const convo = await provider.getConversation(conversation.redditPostId);
+    const convo = await provider.getConversation(conversation.redditPostId, { subreddit: conversation.subreddit });
     const source: RedditSource = SOURCE_BY_PROVIDER[provider.name] ?? conversation.source;
     const res = await ingestConversation(convo.post, convo.comments, source);
     const newInbound = await prisma.message.findFirst({
