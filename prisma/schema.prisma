@@ -132,6 +132,7 @@ model Lead {
   category                LeadCategory @default(COLD)
   stage                   LeadStage    @default(DISCOVERED)
   isMock                  Boolean      @default(false)
+  doNotContact            Boolean      @default(false)
   accountAgeDays          Int?
   karma                   Int?
   conversations           Conversation[]

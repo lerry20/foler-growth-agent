@@ -1,6 +1,6 @@
 import type { Action, ActionType, Conversation, Lead } from "@prisma/client";
 
-const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c);
+export const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ?? c);
 
 export const ACTION_LABEL: Record<ActionType, string> = {
   IGNORE: "Ignore",

@@ -16,12 +16,12 @@ export async function generateAction(conversationId: string, opts?: { force?: bo
   const conversation = await prisma.conversation.findUniqueOrThrow({ where: { id: conversationId } });
   const messageCount = await prisma.message.count({ where: { conversationId } });
 
-  const preflight = await outboundPreflight(conversationId, analysis.recommended_action);
-
   await prisma.action.updateMany({
     where: { conversationId, status: { in: ["PROPOSED", "APPROVAL_REQUESTED"] } },
     data: { status: "SUPERSEDED" },
   });
+
+  const preflight = await outboundPreflight(conversationId, analysis.recommended_action);
 
   const action = await prisma.action.create({
     data: {
@@ -35,8 +35,6 @@ export async function generateAction(conversationId: string, opts?: { force?: bo
       errorMessage: preflight.ok ? null : `Preflight: ${preflight.reasons.join("; ")}`,
     },
   });
-  void conversation;
-
   await prisma.event.create({
     data: { type: "ACTION_GENERATED", leadId: conversation.leadId, conversationId, actionId: action.id },
   });
@@ -89,6 +87,9 @@ export async function approveAction(
   const action = await prisma.action.findUniqueOrThrow({ where: { id: actionId } });
   if (action.status !== "PROPOSED" && action.status !== "APPROVAL_REQUESTED") {
     return { ok: false, reason: `Action status is ${action.status}, cannot approve` };
+  }
+  if (action.errorMessage?.startsWith("Preflight:")) {
+    return { ok: false, reason: `Blocked by preflight: ${action.errorMessage}` };
   }
   if (opts.expectedVersion !== undefined && opts.expectedVersion !== action.conversationVersion) {
     return { ok: false, reason: "Stale — action was generated for a different conversation version" };

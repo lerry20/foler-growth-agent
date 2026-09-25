@@ -68,4 +68,16 @@ describe("telegram handler", () => {
     await handleUpdate(cb("cb:approve:whatever:1", 999));
     expect(vi.mocked(answerCallbackQuery)).toHaveBeenCalledWith("cbq1", "Unauthorized");
   });
+
+  it("unset TELEGRAM_CHAT_ID -> approve callback does nothing", async () => {
+    const r = await ingestConversation(MOCK_CONVERSATIONS[1].post, MOCK_CONVERSATIONS[1].comments, "MOCK");
+    await qualifyConversation(r.conversationId);
+    const action = await generateAction(r.conversationId);
+    env.TELEGRAM_CHAT_ID = "";
+    await handleUpdate(cb(`cb:approve:${action!.id}:${action!.conversationVersion}`, 42));
+    const updated = await prisma.action.findUniqueOrThrow({ where: { id: action!.id } });
+    expect(updated.status).toBe("PROPOSED");
+    expect(await prisma.message.count({ where: { actionId: action!.id, direction: "OUTBOUND" } })).toBe(0);
+    expect(vi.mocked(answerCallbackQuery)).toHaveBeenCalledWith("cbq1", "Bot not configured: set TELEGRAM_CHAT_ID");
+  });
 });

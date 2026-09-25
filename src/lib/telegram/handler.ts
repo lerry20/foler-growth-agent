@@ -4,18 +4,13 @@ import { approveAction, rejectAction, snoozeAction } from "@/lib/actions";
 import { getSetting, setSetting } from "@/lib/settings";
 import { answerCallbackQuery, editMessageText, sendMessage } from "./client";
 import type { TelegramUpdate } from "./client";
-import { chatIdHelpHtml, decisionSuffixHtml } from "./templates";
+import { chatIdHelpHtml, decisionSuffixHtml, esc } from "./templates";
 
 const pendingEditKey = (chatId: string | number) => `telegram.pendingEdit.${chatId}`;
 
 function authorized(chatId: string | number): boolean {
-  return !env.TELEGRAM_CHAT_ID || String(chatId) === String(env.TELEGRAM_CHAT_ID);
-}
-
-async function baseText(chatId: number, messageId: number): Promise<string> {
-  const action = await prisma.action.findFirst({ where: { telegramMessageId: messageId, telegramChatId: String(chatId) } });
-  void action;
-  return "";
+  if (!env.TELEGRAM_CHAT_ID) return false;
+  return String(chatId) === String(env.TELEGRAM_CHAT_ID);
 }
 
 export async function handleUpdate(update: TelegramUpdate): Promise<void> {
@@ -25,7 +20,10 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
     const messageId = cb.message?.message_id;
     if (chatId === undefined || messageId === undefined) return;
     if (!authorized(chatId)) {
-      await answerCallbackQuery(cb.id, "Unauthorized");
+      await answerCallbackQuery(
+        cb.id,
+        env.TELEGRAM_CHAT_ID ? "Unauthorized" : "Bot not configured: set TELEGRAM_CHAT_ID",
+      );
       return;
     }
     const parts = cb.data.split(":");
@@ -33,10 +31,9 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
     const actionId = parts[2];
     const version = parts[3] !== undefined ? Number(parts[3]) : undefined;
     const append = async (status: string) => {
-      const original = cb.message?.text ?? "";
-      await editMessageText(chatId, messageId, original + decisionSuffixHtml(status, env.TELEGRAM_CHAT_ID ? `chat ${chatId}` : String(chatId)));
+      const original = esc(cb.message?.text ?? "");
+      await editMessageText(chatId, messageId, original + decisionSuffixHtml(status, String(chatId)));
     };
-    void baseText;
 
     if (verb === "approve") {
       const res = await approveAction(actionId, { by: `telegram:${chatId}`, expectedVersion: version });

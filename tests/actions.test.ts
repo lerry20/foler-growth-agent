@@ -74,6 +74,18 @@ describe("actions engine", () => {
     expect((await prisma.message.count({ where: { actionId: action!.id, direction: "OUTBOUND" } }))).toBe(0);
   });
 
+  it("doNotContact lead -> Preflight error on action, approve refused", async () => {
+    const { conversationId, leadId } = await setupConvo(1);
+    await prisma.lead.update({ where: { id: leadId }, data: { doNotContact: true } });
+    const action = await generateAction(conversationId);
+    expect(action).toBeTruthy();
+    expect(action!.errorMessage).toMatch(/^Preflight: /);
+    const res = await approveAction(action!.id, { by: "test" });
+    expect(res.ok).toBe(false);
+    expect(res.reason).toMatch(/Blocked by preflight/);
+    expect(await prisma.message.count({ where: { actionId: action!.id, direction: "OUTBOUND" } })).toBe(0);
+  });
+
   it("public_web provider -> MANUAL_REQUIRED, then markPosted posts the message", async () => {
     setProviderForTests(new PublicWebProvider());
     const { conversationId } = await setupConvo(1);

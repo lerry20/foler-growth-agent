@@ -145,7 +145,11 @@ export default async function ConversationPage({ params }: { params: { id: strin
           ) : pending ? (
             <Card title={`Pending action — ${pending.type} (${pending.status})`}>
               <div className="space-y-2">
-                {pending.errorMessage && <div className="rounded bg-amber-50 p-2 text-[11px] text-amber-800">{pending.errorMessage}</div>}
+                {pending.errorMessage && (
+                  <div className={`rounded p-2 text-[11px] ${pending.errorMessage.startsWith("Preflight:") ? "bg-red-50 text-red-700 font-medium" : "bg-amber-50 text-amber-800"}`}>
+                    {pending.errorMessage}
+                  </div>
+                )}
                 <div className="rounded border border-zinc-200 bg-zinc-50 p-2 italic">“{pending.proposedResponse}”</div>
                 <div className="flex flex-wrap gap-2">
                   <ActionButton label="Approve" action={approveActionForm.bind(null, pending.id, undefined)} />

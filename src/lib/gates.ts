@@ -137,6 +137,7 @@ export async function outboundPreflight(
     reasons.push("Original post is older than 90 days");
   }
 
+  if (conversation.lead.doNotContact) reasons.push("Lead marked do-not-contact");
   if (conversation.lead.category === "IGNORE") reasons.push("Lead category is IGNORE");
 
   return { ok: reasons.length === 0, reasons };
