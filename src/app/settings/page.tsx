@@ -7,7 +7,7 @@ import { Card } from "@/components/Funnel";
 import { ActionButton } from "@/components/buttons";
 import {
   saveSetting, saveSearchCategory, saveCommunity, addCommunity,
-  resumeOutboundAction, importRedditUrlForm, pastePostForm, sendTestTelegram,
+  resumeOutboundAction, importRedditUrlForm, pastePostForm, sendTestTelegram, runCycleNowAction,
 } from "../actions";
 import { revalidatePath } from "next/cache";
 
@@ -31,6 +31,12 @@ export default async function SettingsPage() {
       getSetting(SETTING_KEYS.redditProvider, env.REDDIT_PROVIDER),
     ]);
   const lastTelegramEvent = await prisma.event.findFirst({ orderBy: { createdAt: "desc" } });
+  const [lastRunAt, lastResultRaw] = await Promise.all([
+    getSetting("scheduler.lastRunAt", ""),
+    getSetting("scheduler.lastResult", ""),
+  ]);
+  let lastResult: { discovery?: { scanned: number; newConversations: number } | null; monitoring?: { refreshed: number; manual: number } | null; actionsGenerated?: number; errors?: string[] } | null = null;
+  try { lastResult = lastResultRaw ? JSON.parse(lastResultRaw) : null; } catch { lastResult = null; }
 
   async function setField(formData: FormData) {
     "use server";
@@ -181,6 +187,20 @@ export default async function SettingsPage() {
             <div>Removals: {health?.removals ?? 0} · Restrictions: {health?.restrictions ?? 0} · Errors: {health?.errors ?? 0} · Rate limits: {health?.rateLimitHits ?? 0}</div>
             {health?.lastError && <div className="text-red-600">Last error: {health.lastError}</div>}
             <div className="pt-2"><ActionButton label="Resume outbound" action={resumeOutboundAction} /></div>
+          </div>
+        </Card>
+        <Card title="Scheduler">
+          <div className="space-y-1 text-[12px]">
+            <div>Last run: {lastRunAt ? lastRunAt.slice(0, 16).replace("T", " ") : "—"}</div>
+            {lastResult && (
+              <>
+                <div>Discovery: {lastResult.discovery ? `${lastResult.discovery.scanned} scanned, ${lastResult.discovery.newConversations} new` : "—"} · Monitoring: {lastResult.monitoring ? `${lastResult.monitoring.refreshed} refreshed, ${lastResult.monitoring.manual} manual` : "—"} · Actions: {lastResult.actionsGenerated ?? 0}</div>
+                {(lastResult.errors?.length ?? 0) > 0 && (
+                  <div className="text-red-600">{lastResult.errors!.slice(0, 3).join("; ")}</div>
+                )}
+              </>
+            )}
+            <div className="pt-2"><ActionButton label="Run cycle now" action={runCycleNowAction} /></div>
           </div>
         </Card>
         <Card title="Telegram">

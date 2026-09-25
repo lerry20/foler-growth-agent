@@ -43,6 +43,13 @@ Internal tool for FOLĒR (early-stage hair & scalp tracking startup). It finds R
 6. **Monitoring** refreshes active conversations (`refreshAll`); new inbound replies trigger `USER_REPLIED` → re-analysis → new proposed action. When Reddit is unreachable, "Import reply manually" feeds the same path.
 7. **Attribution**: waitlist invites embed `source/subreddit/lead_id/conversation_id/campaign`; optionally routed through `/api/waitlist/go` (records click → 302 redirect) when setting `attribution.useRedirect` is `"true"`. Signups arrive via `POST /api/waitlist/signup` (header `x-webhook-secret` = `ATTRIBUTION_WEBHOOK_SECRET`) or self-reported replies → `Conversion.signedUpAt` + `WAITLIST_SIGNUP` stage.
 
+## Deploy (Vercel + Neon)
+
+1. **Neon**: create a Postgres project → `DATABASE_URL`. From a laptop: `npx prisma db push` then `npx prisma db seed` (set `SEED_MOCK=` empty to skip demo data).
+2. **Vercel**: import the GitHub repo. Env vars: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `APP_BASE_URL` (your https domain), `CRON_SECRET`, `DASHBOARD_PASSWORD` (HTTP Basic on the dashboard), `ATTRIBUTION_WEBHOOK_SECRET`, `REDDIT_OUR_USERNAME`, `REDDIT_USER_AGENT`.
+3. **Telegram**: `npm run telegram:webhook` (registers `${APP_BASE_URL}/api/telegram/webhook`; `--delete` to switch back to polling).
+4. **Scheduling**: GitHub Actions `.github/workflows/scheduler.yml` hits `POST /api/cron/run` every 30 min — add repo secrets `CRON_SECRET` + `APP_BASE_URL`. `vercel.json` also registers a daily fallback cron. Locally, `SCHEDULER_INTERVAL_MINUTES>0` runs the same cycle in-process. Each cycle: reply monitoring → discovery → copilot actions.
+
 ## Mock data
 
 All demo content is clearly labelled: authors prefixed `mock_`, post titles prefixed `[MOCK] `, leads flagged `isMock` (amber "MOCK DATA" badge in the UI).

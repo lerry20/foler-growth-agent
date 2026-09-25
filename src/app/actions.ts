@@ -133,6 +133,13 @@ export async function pastePostForm(formData: FormData) {
   return { conversationId: r.conversationId };
 }
 
+export async function runCycleNowAction() {
+  const { runScheduledCycle } = await import("@/lib/scheduler");
+  const r = await runScheduledCycle();
+  revalidatePath("/settings");
+  return r;
+}
+
 export async function sendTestTelegram() {
   if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return { ok: false };
   const res = await sendMessage(env.TELEGRAM_CHAT_ID, "FOLĒR Growth Agent test message ✅");

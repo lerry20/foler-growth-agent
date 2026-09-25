@@ -5,5 +5,9 @@ export async function register() {
       const { startTelegramPolling } = await import("@/lib/telegram/poller");
       startTelegramPolling();
     }
+    if (env.SCHEDULER_INTERVAL_MINUTES > 0) {
+      const { startSchedulerLoop } = await import("@/lib/schedulerLoop");
+      startSchedulerLoop();
+    }
   }
 }
