@@ -29,13 +29,16 @@ export default async function InboxPage({ searchParams }: { searchParams: Record
   if (searchParams.action) {
     where.conversations = { some: { lastAnalysis: { path: ["recommended_action"], equals: searchParams.action } } };
   }
-  const leads = await prisma.lead.findMany({
-    where,
-    orderBy: { leadScore: "desc" },
-    take: 200,
-    include: { conversations: { orderBy: { lastActivityAt: "desc" }, take: 1 } },
-  });
-  const subreddits = (await prisma.lead.findMany({ select: { subreddit: true }, distinct: ["subreddit"] })).map((s) => s.subreddit);
+  const [leads, subredditRows] = await Promise.all([
+    prisma.lead.findMany({
+      where,
+      orderBy: { leadScore: "desc" },
+      take: 200,
+      include: { conversations: { orderBy: { lastActivityAt: "desc" }, take: 1 } },
+    }),
+    prisma.lead.findMany({ select: { subreddit: true }, distinct: ["subreddit"] }),
+  ]);
+  const subreddits = subredditRows.map((s) => s.subreddit);
 
   return (
     <div className="space-y-4">

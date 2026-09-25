@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [
     postsScanned, relevantLeads, hotLeads, helpPosted, engagePosted, activeConvos,
-    intros, invites, signups, pending, health, recentEvents,
+    intros, invites, signups, pending, health, recentEvents, funnel,
   ] = await Promise.all([
     getSetting(SETTING_KEYS.discoveryPostsScanned, "0"),
     prisma.lead.count({ where: { category: { not: "IGNORE" } } }),
@@ -24,8 +24,8 @@ export default async function HomePage() {
     prisma.action.count({ where: { status: { in: ["PROPOSED", "APPROVAL_REQUESTED", "MANUAL_REQUIRED"] } } }),
     prisma.accountHealth.findUnique({ where: { id: "default" } }),
     prisma.event.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
+    funnelCounts(),
   ]);
-  const funnel = await funnelCounts();
 
   return (
     <div className="space-y-4">

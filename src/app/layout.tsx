@@ -24,9 +24,11 @@ const NAV = [
 ];
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const health = await prisma.accountHealth.findUnique({ where: { id: "default" } });
-  const mockCount = await prisma.lead.count({ where: { isMock: true } });
-  const providerSetting = await getSetting(SETTING_KEYS.redditProvider, "");
+  const [health, mockCount, providerSetting] = await Promise.all([
+    prisma.accountHealth.findUnique({ where: { id: "default" } }),
+    prisma.lead.count({ where: { isMock: true } }),
+    getSetting(SETTING_KEYS.redditProvider, ""),
+  ]);
   const provider = (providerSetting || env.REDDIT_PROVIDER || "public_web") as RedditProviderName;
 
   return (
