@@ -162,6 +162,9 @@ model Conversation {
   lastAnalysis     Json?
   lastAnalyzedAt   DateTime?
   analysisProvider String?
+  problemTheme     String        @default("")
+  struggleTags     String[]      @default([])
+  unmetNeed        String        @default("")
   snoozedUntil     DateTime?
   messages         Message[]
   actions          Action[]

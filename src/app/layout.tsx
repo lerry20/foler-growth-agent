@@ -5,7 +5,7 @@ import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import { env } from "@/lib/env";
 import { providerLabel } from "@/lib/reddit";
 import type { RedditProviderName } from "@/lib/reddit";
-import { Home, Inbox, MessagesSquare, BarChart3, Settings } from "lucide-react";
+import { Home, Inbox, MessagesSquare, BarChart3, Lightbulb, Settings } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,6 +18,7 @@ const NAV = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/conversations", label: "Conversations", icon: MessagesSquare },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/insights", label: "Insights", icon: Lightbulb },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

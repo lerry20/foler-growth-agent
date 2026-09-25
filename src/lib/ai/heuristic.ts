@@ -128,11 +128,21 @@ export function analyzeHeuristically(ctx: HeuristicContext): Analysis {
     reason = "Little relevance to the tracking/measurement problem; nothing genuine to add.";
   }
 
+  const struggle_tags: string[] = [];
+  if (/(working|progress|difference)/.test(text)) struggle_tags.push("UNCERTAINTY_IF_WORKING");
+  if (/(measure|track|photo|compare)/.test(text)) struggle_tags.push("MEASUREMENT_TRACKING");
+  if (/(side effect|libido|shed)/.test(text)) struggle_tags.push("SIDE_EFFECTS");
+  if (/(cost|expensive|afford)/.test(text)) struggle_tags.push("COST");
+  if (/(derm|doctor|prescription)/.test(text)) struggle_tags.push("ACCESS_TO_CARE");
+
   return T({
     problem: ctx.title,
     hair_concern: /(thinning|shedding|hair ?loss|balding|receding|density|scalp)/.exec(text)?.[1] ?? "",
     treatment,
     treatment_duration,
+    problem_theme: "",
+    struggle_tags: struggle_tags.slice(0, 3),
+    unmet_need: "",
     intent,
     foler_relevance,
     conversation_opportunity,
