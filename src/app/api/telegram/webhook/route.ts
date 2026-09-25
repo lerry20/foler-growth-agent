@@ -11,6 +11,10 @@ export async function POST(req: Request) {
     }
   }
   const update = (await req.json()) as TelegramUpdate;
-  await handleUpdate(update);
+  try {
+    await handleUpdate(update);
+  } catch (err) {
+    console.error("[telegram/webhook] update failed", err);
+  }
   return NextResponse.json({ ok: true });
 }
