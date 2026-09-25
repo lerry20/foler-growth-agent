@@ -1,40 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { approveActionForm } from "@/app/actions";
+import { Status } from "@/components/buttons";
+import { BTN } from "@/components/btn";
+import { toast } from "@/components/toast";
 
 export function EditApprove({ actionId, initial }: { actionId: string; initial: string }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(initial);
   const [msg, setMsg] = useState("");
+  const [pending, start] = useTransition();
   if (!open)
     return (
-      <button onClick={() => setOpen(true)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100">
+      <button type="button" onClick={() => setOpen(true)} className={BTN.ghost} title="Change the wording before approving">
         Edit
       </button>
     );
   return (
-    <div className="space-y-2">
+    <div className="w-full space-y-2">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={4}
-        className="w-full rounded border border-zinc-300 p-2 text-[12px] break-words [overflow-wrap:anywhere]"
+        rows={5}
+        autoFocus
+        className="w-full rounded-md border border-zinc-300 p-2.5 text-[12px] leading-relaxed break-words [overflow-wrap:anywhere]"
       />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={async () => {
-            const r = await approveActionForm(actionId, text);
-            setMsg(r.message);
-          }}
-          className="rounded bg-zinc-900 px-2 py-1 text-[11px] text-white"
+          type="button"
+          disabled={pending || !text.trim()}
+          className={BTN.primary}
+          title="Approve your edited version — you still post it yourself"
+          onClick={() =>
+            start(async () => {
+              try {
+                const r = await approveActionForm(actionId, text);
+                setMsg(r.message);
+                toast(r.message);
+              } catch (e) {
+                setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            })
+          }
         >
+          {pending && <Loader2 size={13} className="spin" />}
           Approve with edits
         </button>
-        <button onClick={() => setOpen(false)} className="text-[11px] text-zinc-500">
+        <button type="button" disabled={pending} onClick={() => { setOpen(false); setText(initial); }} className={BTN.ghost}>
           Cancel
         </button>
-        {msg && <span className="text-[11px] text-zinc-500">{msg}</span>}
+        <Status text={msg} />
       </div>
     </div>
   );

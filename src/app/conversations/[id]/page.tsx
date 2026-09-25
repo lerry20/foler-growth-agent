@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Funnel";
-import { ActionButton, CopyButton } from "@/components/buttons";
+import { ActionButton, ActionForm, CopyButton, SubmitButton } from "@/components/buttons";
+import { BTN } from "@/components/btn";
 import type { AnalysisResult } from "@/lib/ai/types";
 import type { ScoreBreakdown } from "@/lib/scoring";
 import {
@@ -124,7 +125,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
     <div className="space-y-5">
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="max-w-2xl truncate text-xl font-semibold tracking-tight">{c.title}</h1>
+          <h1 className="max-w-full truncate text-lg font-semibold tracking-tight md:max-w-2xl md:text-xl">{c.title}</h1>
           <a href={c.redditUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-zinc-500 hover:underline">
             Open on Reddit <ExternalLink size={12} />
           </a>
@@ -149,8 +150,8 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{pending.finalResponse ?? pending.proposedResponse}</div>
                   <div className="flex flex-wrap items-center gap-2">
                     <CopyButton text={pending.finalResponse ?? pending.proposedResponse} />
-                    <a href={c.redditUrl} target="_blank" rel="noreferrer" className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100">Open thread</a>
-                    <ActionButton label="I posted it" title="Tell the agent the comment is live so it starts watching for replies" action={markPostedForm.bind(null, pending.id)} />
+                    <a href={c.redditUrl} target="_blank" rel="noreferrer" className={BTN.ghost}>Open thread</a>
+                    <ActionButton toast label="I posted it" title="Tell the agent the comment is live so it starts watching for replies" action={markPostedForm.bind(null, pending.id)} />
                   </div>
                 </div>
               </Card>
@@ -164,10 +165,10 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   )}
                   <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{pending.proposedResponse}</div>
                   <div className="flex flex-wrap gap-2">
-                    <ActionButton label="Approve" title="Approve as written — you still post it yourself" action={approveActionForm.bind(null, pending.id, undefined)} />
+                    <ActionButton toast label="Approve" title="Approve as written — you still post it yourself" action={approveActionForm.bind(null, pending.id, undefined)} />
                     <EditApprove actionId={pending.id} initial={pending.proposedResponse} />
-                    <ActionButton label="Reject" title="Drop this draft; nothing is posted" action={rejectActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
-                    <ActionButton label="Snooze 24h" title="Hide it for a day" action={snoozeActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+                    <ActionButton toast label="Reject" title="Drop this draft; nothing is posted" action={rejectActionForm.bind(null, pending.id)} className={BTN.ghost} />
+                    <ActionButton toast label="Snooze 24h" title="Hide it for a day" action={snoozeActionForm.bind(null, pending.id)} className={BTN.ghost} />
                   </div>
                 </div>
               </Card>
@@ -181,8 +182,8 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   {analysis.suggested_response && (
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{analysis.suggested_response}</div>
                   )}
-                  <div className="flex gap-2">
-                    <ActionButton label="Draft a reply" title="Claude writes a reply for you to approve" action={generateActionForm.bind(null, c.id)} />
+                  <div className="flex flex-wrap gap-2">
+                    <ActionButton toast label="Draft a reply" title="Claude writes a reply for you to approve" action={generateActionForm.bind(null, c.id)} />
                   </div>
                 </div>
               </Card>
@@ -210,14 +211,14 @@ export default async function ConversationPage({ params }: { params: { id: strin
                 </Fold>
               )}
               {replies.length === 0 && <div className="text-[12px] text-zinc-400">No replies yet.</div>}
-              <div className="flex items-center gap-3 pt-1">
-                <ActionButton label="Check for new comments" title="Re-read the thread on Reddit" action={refreshConversationForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <ActionButton label="Check for new comments" title="Re-read the thread on Reddit" action={refreshConversationForm.bind(null, c.id)} className={BTN.ghost} />
                 <Fold summary="Paste a reply by hand">
-                  <form action={async (fd: FormData) => { "use server"; await importReplyForm(c.id, fd); }} className="space-y-2">
-                    <input name="author" placeholder="author" required className="w-full rounded border border-zinc-300 px-2 py-1" />
-                    <textarea name="content" placeholder="reply text" required rows={3} className="w-full rounded border border-zinc-300 px-2 py-1" />
-                    <button className="rounded bg-zinc-900 px-3 py-1 text-[12px] text-white">Add reply</button>
-                  </form>
+                  <ActionForm ok="Reply added" action={async (fd: FormData) => { "use server"; await importReplyForm(c.id, fd); }} className="space-y-2">
+                    <input name="author" placeholder="Their Reddit username" required className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5" />
+                    <textarea name="content" placeholder="Paste their reply" required rows={3} className="w-full rounded-md border border-zinc-300 px-2.5 py-1.5" />
+                    <SubmitButton>Add reply</SubmitButton>
+                  </ActionForm>
                 </Fold>
               </div>
             </div>
@@ -262,7 +263,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                 })()}
                 <div className="flex items-center gap-2 pt-1 text-[11px] text-zinc-400">
                   {analysis.provider === "anthropic" ? "Claude analysis" : "heuristic fallback"}
-                  <ActionButton label="Analyze again" title="Re-read the whole thread and redo the analysis" action={reanalyzeForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] hover:bg-zinc-100" />
+                  <ActionButton label="Analyze again" title="Re-read the whole thread and redo the analysis" action={reanalyzeForm.bind(null, c.id)} className={BTN.ghost} />
                 </div>
               </div>
             </Card>
@@ -270,7 +271,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
             <Card title="Not analyzed yet">
               <div className="space-y-3">
                 <div className="text-[13px] text-zinc-400">Claude hasn&apos;t read this thread yet.</div>
-                <ActionButton label="Analyze" title="Read the thread and classify the problem" action={reanalyzeForm.bind(null, c.id)} />
+                <ActionButton toast label="Analyze" title="Read the thread and classify the problem" action={reanalyzeForm.bind(null, c.id)} />
               </div>
             </Card>
           )}
