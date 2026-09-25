@@ -3,14 +3,12 @@
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { approveActionForm } from "@/app/actions";
-import { Status } from "@/components/buttons";
 import { BTN } from "@/components/btn";
 import { toast } from "@/components/toast";
 
 export function EditApprove({ actionId, initial }: { actionId: string; initial: string }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(initial);
-  const [msg, setMsg] = useState("");
   const [pending, start] = useTransition();
   if (!open)
     return (
@@ -37,10 +35,9 @@ export function EditApprove({ actionId, initial }: { actionId: string; initial: 
             start(async () => {
               try {
                 const r = await approveActionForm(actionId, text);
-                setMsg(r.message);
                 toast(r.message);
               } catch (e) {
-                setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
+                toast(`Error: ${e instanceof Error ? e.message : String(e)}`);
               }
             })
           }
@@ -51,7 +48,6 @@ export function EditApprove({ actionId, initial }: { actionId: string; initial: 
         <button type="button" disabled={pending} onClick={() => { setOpen(false); setText(initial); }} className={BTN.ghost}>
           Cancel
         </button>
-        <Status text={msg} />
       </div>
     </div>
   );

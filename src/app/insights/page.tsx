@@ -89,7 +89,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
               {["7", "30", "90", "all"].map((d) => (
                 <Link key={d} href={qs(includeMock, d)} className="pulse-pill" data-on={daysParam === d}>{d === "all" ? "All time" : `${d} days`}</Link>
               ))}
-              <Link href={qs(!includeMock, daysParam)} className="pulse-pill" data-on={includeMock}>{includeMock ? "Mock on" : "Real only"}</Link>
+              <Link href={qs(!includeMock, daysParam)} className="pulse-pill" data-on={includeMock} title={includeMock ? "Demo data is included — click to show real posts only" : "Real posts only — click to include demo data"}>{includeMock ? "Hide demo data" : "Show demo data"}</Link>
             </div>
           </div>
           <h1 className="pulse-h1 relative mt-10 max-w-4xl">

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Check, Loader2 } from "lucide-react";
-import { toast, isFailureText } from "./toast";
+import { toast } from "./toast";
 import { BTN } from "./btn";
 
 export { BTN };
@@ -18,72 +18,36 @@ export function describe(r: unknown): string {
   return "Done";
 }
 
-const isFailure = isFailureText;
-
-export function Status({ text, className = "" }: { text: string; className?: string }) {
-  if (!text) return null;
-  const bad = isFailure(text);
-  return (
-    <span
-      role="status"
-      className={`flash inline-flex max-w-md items-start gap-1 text-[11px] leading-snug ${bad ? "text-red-700" : "text-sage-700"} ${className}`}
-    >
-      {!bad && <Check size={12} className="mt-[1px] shrink-0" />}
-      {text}
-    </span>
-  );
-}
-
 export function ActionButton(props: {
   label: string;
   action: () => Promise<unknown>;
   className?: string;
   confirm?: string;
   title?: string;
-  /** How long the result message stays visible (ms). 0 = until the next click. */
-  clearAfter?: number;
-  /** Also show the result as a toast — use when the button's container may disappear after the action. */
-  toast?: boolean;
 }) {
   const [pending, start] = useTransition();
-  const [result, setResult] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  const show = (text: string) => {
-    if (props.toast) toast(text);
-    setResult(text);
-    if (timer.current) clearTimeout(timer.current);
-    const ms = props.clearAfter ?? 6000;
-    if (ms > 0 && !isFailure(text)) timer.current = setTimeout(() => setResult(""), ms);
-  };
-
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        disabled={pending}
-        aria-busy={pending}
-        title={props.title}
-        onClick={() => {
-          if (props.confirm && !window.confirm(props.confirm)) return;
-          setResult("");
-          start(async () => {
-            try {
-              const r = await props.action();
-              show(describe(r));
-            } catch (e) {
-              show(`Error: ${e instanceof Error ? e.message : String(e)}`);
-            }
-          });
-        }}
-        className={props.className ?? BTN.primary}
-      >
-        {pending && <Loader2 size={13} className="spin shrink-0" />}
-        {props.label}
-      </button>
-      <Status text={result} />
-    </span>
+    <button
+      type="button"
+      disabled={pending}
+      aria-busy={pending}
+      title={props.title}
+      onClick={() => {
+        if (props.confirm && !window.confirm(props.confirm)) return;
+        start(async () => {
+          try {
+            const r = await props.action();
+            toast(describe(r));
+          } catch (e) {
+            toast(`Error: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        });
+      }}
+      className={props.className ?? BTN.primary}
+    >
+      {pending && <Loader2 size={13} className="spin shrink-0" />}
+      {props.label}
+    </button>
   );
 }
 
