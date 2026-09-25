@@ -108,6 +108,7 @@ COMMUNITY PROMOTION SENSITIVITY: ${ctx.promotionSensitivity}
 FOLĒR INTRODUCTION ALLOWED IN THIS COMMUNITY: ${ctx.folerIntroAllowed ? "yes" : "NO — never recommend INTRODUCE_FOLER or WAITLIST_INVITE here"}
 COMMUNITY NOTES: ${ctx.communityNotes || "none"}
 CURRENT PERMISSION STATE: ${ctx.permissionState}
+${ctx.messages.filter((m) => m.direction === "OUTBOUND").length === 0 ? "We have NOT yet replied in this thread." : `Our outbound replies in this thread so far: ${ctx.messages.filter((m) => m.direction === "OUTBOUND").length}`}
 
 ORIGINAL POST by u/${ctx.post.author} (${ctx.post.createdAt})
 TITLE: ${ctx.post.title}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { runDiscovery } from "@/lib/discovery";
-import { generateActionsForCandidates, generateAction, approveAction, rejectAction, snoozeAction, markPosted } from "@/lib/actions";
+import { generateActionsForCandidates, generateAction, approveAction, rejectAction, snoozeAction, markPosted, requestApproval } from "@/lib/actions";
 import { refreshAll, refreshConversation, importReplyManually } from "@/lib/monitoring";
 import { qualifyConversation } from "@/lib/ai/analyze";
 import { setSetting } from "@/lib/settings";
@@ -53,8 +53,13 @@ export async function markPostedForm(actionId: string) {
 
 export async function generateActionForm(conversationId: string) {
   const a = await generateAction(conversationId);
+  if (!a) {
+    revalidatePath(`/conversations/${conversationId}`);
+    return "No action recommended";
+  }
+  await requestApproval(a.id);
   revalidatePath(`/conversations/${conversationId}`);
-  return a?.id ?? null;
+  return "Action created — sent for approval";
 }
 
 export async function reanalyzeForm(conversationId: string) {

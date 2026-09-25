@@ -145,6 +145,7 @@ export async function qualifyConversation(
     waitlistUrl: kb.waitlistUrl,
     community,
     leadScore: total,
+    hasOutbound: conversation.messages.some((m) => m.direction === "OUTBOUND"),
   });
   analysis = gated;
 

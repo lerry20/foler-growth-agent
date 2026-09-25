@@ -37,11 +37,23 @@ describe("applyGates", () => {
     expect(blocked.length).toBeGreaterThan(0);
   });
 
+  it("no outbound yet -> INTRODUCE_FOLER downgrades to HELP", () => {
+    const { analysis, blocked } = applyGates(
+      baseAnalysis({ recommended_action: "INTRODUCE_FOLER", suggested_response: "I'm building something for this. Try FOLĒR." }),
+      { subreddit: "tressless", permissionState: "PERMISSION_GRANTED", waitlistUrl: "https://x.co", hasOutbound: false },
+    );
+    expect(analysis.recommended_action).toBe("HELP");
+    expect(analysis.should_mention_foler).toBe(false);
+    expect(analysis.suggested_response).not.toMatch(/fol[ēe]r|building something/i);
+    expect(blocked.join(" ")).toContain("Help first");
+  });
+
   it("downgrades INTRODUCE_FOLER/WAITLIST_INVITE when community disallows intro", () => {
     const { analysis } = applyGates(baseAnalysis({ recommended_action: "WAITLIST_INVITE", permission_signal: "INTEREST_EXPRESSED" }), {
       subreddit: "tressless",
       permissionState: "FOLER_INTRODUCED",
       waitlistUrl: "https://x.co",
+      hasOutbound: true,
       community: { folerIntroAllowed: false, dmAllowed: false, minRelevanceScore: 0, allowedActions: [] },
     });
     expect(analysis.recommended_action).toBe("FOLLOW_UP");

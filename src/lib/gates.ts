@@ -13,6 +13,7 @@ export interface GateContext {
     allowedActions: ActionType[];
   } | null;
   leadScore?: number;
+  hasOutbound?: boolean;
 }
 
 const MENTION_ALLOWED_STATES = new Set([
@@ -26,7 +27,7 @@ const INVITE_ALLOWED_STATES = new Set(["FOLER_INTRODUCED", "INTEREST_DETECTED"])
 function stripFolerSentences(text: string): string {
   return text
     .split(/(?<=[.!?])\s+/)
-    .filter((s) => !/fol[ēe]r/i.test(s))
+    .filter((s) => !/fol[ēe]r|building something|working on something|working on a|something related/i.test(s))
     .join(" ")
     .trim();
 }
@@ -35,6 +36,16 @@ export function applyGates(analysis: Analysis, ctx: GateContext): { analysis: An
   const a: Analysis = { ...analysis };
   const blocked: string[] = [];
   const community = ctx.community;
+
+  if (
+    !ctx.hasOutbound &&
+    (a.recommended_action === "INTRODUCE_FOLER" || a.recommended_action === "WAITLIST_INVITE" || a.recommended_action === "DM")
+  ) {
+    a.recommended_action = "HELP";
+    a.should_mention_foler = false;
+    a.suggested_response = stripFolerSentences(a.suggested_response);
+    blocked.push("Help first: no prior helpful reply in this thread");
+  }
 
   if (community && !community.folerIntroAllowed && (a.recommended_action === "INTRODUCE_FOLER" || a.recommended_action === "WAITLIST_INVITE")) {
     a.recommended_action = a.recommended_action === "WAITLIST_INVITE" ? "FOLLOW_UP" : "ENGAGE";
