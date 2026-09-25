@@ -54,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </span>
               )}
             </header>
-            <main className="p-3 md:p-5">{children}</main>
+            <main className="overflow-x-clip p-3 md:p-5">{children}</main>
           </div>
         </div>
         <BottomNav />

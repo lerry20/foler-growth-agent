@@ -166,7 +166,7 @@ export default async function HomePage() {
       <div className="card grid grid-cols-1 gap-4 p-4 text-[12px] text-zinc-500 md:grid-cols-3">
         <div className="space-y-1.5">
           <ActionButton label="Find new people" action={runDiscoveryAction} />
-          <p>Search the monitored communities for new posts and read them. Runs by itself every 30 min.</p>
+          <p>Search the monitored communities for new posts and read them. Reddit rate-limits us, so this can take a few minutes — you can keep using the app meanwhile. Runs by itself every 30 min.</p>
         </div>
         <div className="space-y-1.5">
           <ActionButton label={noDraft ? `Draft replies (${noDraft} waiting)` : "Draft replies"} action={runCopilotAction} />

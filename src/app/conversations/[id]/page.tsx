@@ -151,7 +151,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   <div className="flex flex-wrap items-center gap-2">
                     <CopyButton text={pending.finalResponse ?? pending.proposedResponse} />
                     <a href={c.redditUrl} target="_blank" rel="noreferrer" className={BTN.ghost}>Open thread</a>
-                    <ActionButton toast label="I posted it" title="Tell the agent the comment is live so it starts watching for replies" action={markPostedForm.bind(null, pending.id)} />
+                    <ActionButton label="I posted it" title="Tell the agent the comment is live so it starts watching for replies" action={markPostedForm.bind(null, pending.id)} />
                   </div>
                 </div>
               </Card>
@@ -165,10 +165,10 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   )}
                   <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{pending.proposedResponse}</div>
                   <div className="flex flex-wrap gap-2">
-                    <ActionButton toast label="Approve" title="Approve as written — you still post it yourself" action={approveActionForm.bind(null, pending.id, undefined)} />
+                    <ActionButton label="Approve" title="Approve as written — you still post it yourself" action={approveActionForm.bind(null, pending.id, undefined)} />
                     <EditApprove actionId={pending.id} initial={pending.proposedResponse} />
-                    <ActionButton toast label="Reject" title="Drop this draft; nothing is posted" action={rejectActionForm.bind(null, pending.id)} className={BTN.ghost} />
-                    <ActionButton toast label="Snooze 24h" title="Hide it for a day" action={snoozeActionForm.bind(null, pending.id)} className={BTN.ghost} />
+                    <ActionButton label="Reject" title="Drop this draft; nothing is posted" action={rejectActionForm.bind(null, pending.id)} className={BTN.ghost} />
+                    <ActionButton label="Snooze 24h" title="Hide it for a day" action={snoozeActionForm.bind(null, pending.id)} className={BTN.ghost} />
                   </div>
                 </div>
               </Card>
@@ -183,7 +183,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{analysis.suggested_response}</div>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    <ActionButton toast label="Draft a reply" title="Claude writes a reply for you to approve" action={generateActionForm.bind(null, c.id)} />
+                    <ActionButton label="Draft a reply" title="Claude writes a reply for you to approve" action={generateActionForm.bind(null, c.id)} />
                   </div>
                 </div>
               </Card>
@@ -271,7 +271,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
             <Card title="Not analyzed yet">
               <div className="space-y-3">
                 <div className="text-[13px] text-zinc-400">Claude hasn&apos;t read this thread yet.</div>
-                <ActionButton toast label="Analyze" title="Read the thread and classify the problem" action={reanalyzeForm.bind(null, c.id)} />
+                <ActionButton label="Analyze" title="Read the thread and classify the problem" action={reanalyzeForm.bind(null, c.id)} />
               </div>
             </Card>
           )}

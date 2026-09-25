@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
-import { CopyButton, Status } from "@/components/buttons";
+import { CopyButton } from "@/components/buttons";
 import { toast } from "@/components/toast";
 import {
   approveActionForm,
@@ -57,23 +57,18 @@ function ago(iso: string | null): string {
 export function OutreachCard({ item, column }: { item: OutreachItem; column: Column }) {
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
-  const [msg, setMsg] = useState("");
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(item.text);
 
   const run = (key: string, fn: () => Promise<unknown>, okMsg: string) => {
     setBusy(key);
-    setMsg("");
     start(async () => {
       try {
         const r = await fn();
         const server = r && typeof r === "object" && "message" in r ? (r as { message?: string }).message : undefined;
-        setMsg(server ?? okMsg);
         toast(server ?? okMsg);
       } catch (e) {
-        const err = `Error: ${e instanceof Error ? e.message : String(e)}`;
-        setMsg(err);
-        toast(err);
+        toast(`Error: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setBusy(null);
       }
@@ -170,7 +165,6 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
         </>
       )}
 
-      {msg && !pending && <Status text={msg} />}
     </div>
   );
 }

@@ -197,7 +197,7 @@ export default async function SettingsPage() {
             </div>
             <div>Comments posted today: {health?.commentsToday ?? 0}</div>
             <div>Removed by mods: {health?.removals ?? 0} · Restrictions: {health?.restrictions ?? 0} · Rate limits hit: {health?.rateLimitHits ?? 0}</div>
-            {health?.lastError && <div className="text-red-600">Last error: {health.lastError}</div>}
+            {health?.lastError && <div className="break-words text-red-600 [overflow-wrap:anywhere]">Last error: {health.lastError}</div>}
             {health?.outboundPaused && <div className="pt-2"><ActionButton label="Resume outbound" action={resumeOutboundAction} /></div>}
           </div>
         </Card>
@@ -212,11 +212,11 @@ export default async function SettingsPage() {
                   {" · "}{lastResult.actionsGenerated ?? 0} replies drafted
                 </div>
                 {(lastResult.errors?.length ?? 0) > 0 && (
-                  <div className="text-red-600">{lastResult.errors!.slice(0, 3).join("; ")}</div>
+                  <div className="break-words text-red-600 [overflow-wrap:anywhere]">{lastResult.errors!.slice(0, 3).join("; ")}</div>
                 )}
               </>
             )}
-            <div className="pt-2"><ActionButton label="Run cycle now" action={runCycleNowAction} /></div>
+            <div className="flex flex-wrap items-center gap-2 pt-2"><ActionButton label="Run cycle now" action={runCycleNowAction} /><span className="text-zinc-400">Discovery + reply check; can take a few minutes at Reddit&apos;s pace.</span></div>
           </div>
         </Card>
       </div>

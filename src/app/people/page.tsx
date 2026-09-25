@@ -35,11 +35,12 @@ function ago(d: Date) {
 
 export default async function PeoplePage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   const showMock = searchParams.mock === "1";
-  const filter = (searchParams.status ?? "all") as Status | "all";
+  const requested = searchParams.status;
+  const filter: Status | "all" = requested && requested in STATUS ? (requested as Status) : "all";
   const sub = searchParams.subreddit;
   const q = searchParams.q?.trim() ?? "";
 
-  const conversations = await prisma.conversation.findMany({
+  const [conversations, subredditRows] = await Promise.all([prisma.conversation.findMany({
     where: {
       ...(showMock ? {} : { lead: { isMock: false } }),
       ...(sub ? { subreddit: sub } : {}),
@@ -58,7 +59,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Recor
       actions: { orderBy: { createdAt: "desc" }, take: 1, where: { status: { notIn: ["SUPERSEDED", "REJECTED", "SNOOZED"] } } },
     },
     take: 300,
-  });
+  }), prisma.conversation.groupBy({ by: ["subreddit"], where: showMock ? {} : { lead: { isMock: false } } })]);
 
   const rows = conversations.map((c) => {
     const a = c.actions[0];
@@ -79,7 +80,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Recor
   const visible = rows
     .filter((r) => filter === "all" || r.status === filter)
     .sort((x, y) => ORDER.indexOf(x.status) - ORDER.indexOf(y.status) || y.c.lead.leadScore - x.c.lead.leadScore || y.c.lastActivityAt.getTime() - x.c.lastActivityAt.getTime());
-  const subreddits = Array.from(new Set(conversations.map((c) => c.subreddit))).sort();
+  const subreddits = subredditRows.map((r) => r.subreddit).sort();
 
   const qs = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
@@ -124,7 +125,13 @@ export default async function PeoplePage({ searchParams }: { searchParams: Recor
         )}
       </div>
 
-      {filter !== "all" && <p className="text-[12px] text-zinc-500">{STATUS[filter].hint}</p>}
+      {(filter !== "all" || sub || q) && (
+        <p className="flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
+          {filter !== "all" && <span>{STATUS[filter].hint}</span>}
+          {(sub || q) && <span>Showing {visible.length} {sub ? `in r/${sub}` : ""} {q ? `matching “${q}”` : ""}</span>}
+          <Link href={qs({ status: undefined, subreddit: undefined, q: undefined })} className="underline underline-offset-2 hover:text-zinc-800">Clear filters</Link>
+        </p>
+      )}
 
       <div className="card overflow-hidden">
         <table className="w-full table-fixed border-collapse text-[13px] sm:table-auto">

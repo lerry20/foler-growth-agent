@@ -151,6 +151,7 @@ export async function resumeOutboundAction() {
 
 export async function importRedditUrlForm(url: string) {
   const r = await importConversationFromUrl(url);
+  await qualifyConversation(r.conversationId);
   refreshLists();
   return r;
 }
@@ -162,8 +163,9 @@ export async function pastePostForm(formData: FormData) {
     author: String(formData.get("author") ?? ""),
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
-    createdAt: new Date(String(formData.get("createdAt") ?? Date.now())),
+    createdAt: new Date(),
   });
+  await qualifyConversation(r.conversationId);
   refreshLists();
   return { conversationId: r.conversationId };
 }

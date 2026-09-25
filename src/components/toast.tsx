@@ -22,7 +22,8 @@ export function toast(text: string, opts: { bad?: boolean; ms?: number } = {}) {
   const t: Toast = { id: ++seq, text, bad };
   toasts = [...toasts.slice(-3), t];
   emit();
-  setTimeout(() => dismiss(t.id), opts.ms ?? (bad ? 7000 : 3500));
+  const base = Math.min(9000, 3000 + text.length * 40);
+  setTimeout(() => dismiss(t.id), opts.ms ?? (bad ? Math.max(7000, base) : base));
 }
 
 function dismiss(id: number) {

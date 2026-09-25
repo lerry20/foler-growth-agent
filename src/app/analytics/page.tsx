@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { funnelCounts } from "@/lib/funnel";
 import { Funnel, Card } from "@/components/Funnel";
@@ -86,7 +87,7 @@ export default async function AnalyticsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-semibold">Analytics</h1>
-        <p className="text-[13px] text-zinc-500">How the outreach loop performs: from people found to waitlist signups. For what people struggle with, see Insights.</p>
+        <p className="text-[13px] text-zinc-500">How the outreach loop performs: from people found to waitlist signups. For what people struggle with, see <Link href="/insights" className="underline underline-offset-2 hover:text-zinc-800">Insights</Link>.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card title="From found to signed up" hint="Each step counts people who reached at least that stage."><Funnel steps={funnel} /></Card>
