@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseAtomEntries, entryToPost, entryToComment, htmlToText, PublicWebProvider } from "@/lib/reddit/publicWeb";
+import { parseAtomEntries, entryToPost, entryToComment, htmlToText, PublicWebProvider, threadUrls } from "@/lib/reddit/publicWeb";
 import { RedditProviderError } from "@/lib/reddit/types";
 
 const ATOM = `<?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +43,21 @@ describe("publicWeb Atom parsing", () => {
   });
 });
 
+describe("threadUrls", () => {
+  it("builds subreddit-scoped urls when subreddit given", () => {
+    expect(threadUrls("1abc23", "tressless")).toEqual({
+      json: "https://www.reddit.com/r/tressless/comments/1abc23.json",
+      rss: "https://www.reddit.com/r/tressless/comments/1abc23/.rss",
+    });
+  });
+  it("falls back to bare /comments/ urls without subreddit", () => {
+    expect(threadUrls("1abc23")).toEqual({
+      json: "https://www.reddit.com/comments/1abc23.json",
+      rss: "https://www.reddit.com/comments/1abc23/.rss",
+    });
+  });
+});
+
 describe("publicWeb error handling", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -65,12 +80,12 @@ describe("publicWeb error handling", () => {
   it("throws RATE_LIMITED on 429 with retry-after", async () => {
     vi.stubGlobal(
       "fetch",
-      async () => new Response("slow down", { status: 429, headers: { "Retry-After": "120" } }),
+      async () => new Response("slow down", { status: 429, headers: { "Retry-After": "1" } }),
     );
     const provider = new PublicWebProvider();
     await expect(provider.searchPosts("x")).rejects.toMatchObject({
       kind: "RATE_LIMITED",
-      retryAfterSeconds: 120,
+      retryAfterSeconds: 1,
     });
     await expect(provider.searchPosts("x")).rejects.toBeInstanceOf(RedditProviderError);
   });

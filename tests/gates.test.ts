@@ -94,6 +94,52 @@ describe("applyGates", () => {
     expect(blocked.join(" ")).toContain("never introduced");
   });
 
+  it("minor protection: '14M' in post text → IGNORE", () => {
+    const { analysis, blocked } = applyGates(baseAnalysis({ recommended_action: "HELP" }), {
+      subreddit: "tressless",
+      permissionState: "NO_FOLER_MENTION",
+      waitlistUrl: "https://x.co",
+      hasOutbound: false,
+      postText: "14M and suddenly noticing significant hair thinning",
+    });
+    expect(analysis.recommended_action).toBe("IGNORE");
+    expect(analysis.suggested_response).toBe("");
+    expect(analysis.should_mention_foler).toBe(false);
+    expect(blocked.join(" ")).toContain("Minor protection");
+    expect(analysis.reason).toContain("[gated: HELP → IGNORE]");
+  });
+
+  it("minor protection: 'I'm 17' → IGNORE", () => {
+    const { analysis, blocked } = applyGates(baseAnalysis(), {
+      subreddit: "tressless",
+      permissionState: "NO_FOLER_MENTION",
+      waitlistUrl: "https://x.co",
+      postText: "I'm 17 and my hairline is receding",
+    });
+    expect(analysis.recommended_action).toBe("IGNORE");
+    expect(blocked.join(" ")).toContain("Minor protection");
+  });
+
+  it("minor protection: 'I'm 27, 17 months on fin' does not flag", () => {
+    const { analysis } = applyGates(baseAnalysis({ recommended_action: "ENGAGE" }), {
+      subreddit: "tressless",
+      permissionState: "NO_FOLER_MENTION",
+      waitlistUrl: "https://x.co",
+      postText: "I'm 27, 17 months on fin and still shedding",
+    });
+    expect(analysis.recommended_action).toBe("ENGAGE");
+  });
+
+  it("minor protection: '18M, minoxidil since 17' does not flag", () => {
+    const { analysis } = applyGates(baseAnalysis({ recommended_action: "ENGAGE" }), {
+      subreddit: "tressless",
+      permissionState: "NO_FOLER_MENTION",
+      waitlistUrl: "https://x.co",
+      postText: "18M, been on minoxidil since 17 and seeing slow progress",
+    });
+    expect(analysis.recommended_action).toBe("ENGAGE");
+  });
+
   it("downgrades INTRODUCE_FOLER/WAITLIST_INVITE when community disallows intro", () => {
     const { analysis } = applyGates(baseAnalysis({ recommended_action: "WAITLIST_INVITE", permission_signal: "INTEREST_EXPRESSED" }), {
       subreddit: "tressless",

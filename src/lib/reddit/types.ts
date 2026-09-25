@@ -45,6 +45,10 @@ export interface SearchOptions {
   timeWindow?: "day" | "week" | "month" | "year" | "all";
 }
 
+export interface ThreadRef {
+  subreddit?: string;
+}
+
 export interface CreateCommentInput {
   parentId: string; // post id or comment id
   parentKind: "post" | "comment";
@@ -78,12 +82,12 @@ export interface RedditProvider {
   readonly name: RedditProviderName;
   readonly capabilities: ProviderCapabilities;
   searchPosts(query: string, options?: SearchOptions): Promise<RedditPost[]>;
-  getPost(postId: string): Promise<RedditPost>;
-  getComments(postId: string): Promise<RedditComment[]>;
+  getPost(postId: string, ref?: ThreadRef): Promise<RedditPost>;
+  getComments(postId: string, ref?: ThreadRef): Promise<RedditComment[]>;
   getUser(username: string): Promise<RedditUser>;
-  getConversation(postId: string): Promise<RedditConversation>;
+  getConversation(postId: string, ref?: ThreadRef): Promise<RedditConversation>;
   /** Throws RedditProviderError("UNSUPPORTED") when capabilities.createComment is false. */
   createComment(input: CreateCommentInput): Promise<CreateCommentResult>;
   /** Replies to one of our comments (or to the post if commentId is null). */
-  getReplies(postId: string, commentId: string | null): Promise<RedditComment[]>;
+  getReplies(postId: string, commentId: string | null, ref?: ThreadRef): Promise<RedditComment[]>;
 }

@@ -33,6 +33,9 @@ const EnvSchema = z.object({
   REDDIT_PASSWORD: z.string().default(""),
   APP_BASE_URL: z.string().default("http://localhost:3000"),
   ATTRIBUTION_WEBHOOK_SECRET: z.string().default(""),
+  CRON_SECRET: z.string().default(""),
+  SCHEDULER_INTERVAL_MINUTES: z.coerce.number().default(0),
+  DASHBOARD_PASSWORD: z.string().default(""),
   SEED_MOCK: z.string().default(""),
 });
 

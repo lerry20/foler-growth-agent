@@ -18,7 +18,8 @@ export interface DiscoveryResult {
   errors: string[];
 }
 
-export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?: number }): Promise<DiscoveryResult> {
+export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?: number; maxThreads?: number }): Promise<DiscoveryResult> {
+  const maxThreads = opts?.maxThreads ?? 12;
   const result: DiscoveryResult = { scanned: 0, newLeads: 0, newConversations: 0, skipped: 0, errors: [] };
   const provider = await getRedditProvider();
   const source: RedditSource = SOURCE_BY_PROVIDER[provider.name] ?? "PUBLIC_WEB";
@@ -30,6 +31,7 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
   const subreddits = communities.map((c) => c.name);
 
   let stopped = false;
+  let threadsFetched = 0;
   for (const cat of categories) {
     for (const term of cat.terms) {
       if (stopped) break;
@@ -37,7 +39,7 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
       try {
         posts = await provider.searchPosts(term, {
           subreddits,
-          limit: opts?.limitPerTerm ?? 10,
+          limit: opts?.limitPerTerm ?? 5,
           sort: "new",
         });
       } catch (err) {
@@ -53,12 +55,26 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
 
       for (const post of posts) {
         result.scanned++;
+        if (stopped) break;
         if (Date.now() - post.createdAt.getTime() > MAX_POST_AGE_MS) {
           result.skipped++;
           continue;
         }
+        const existing = await prisma.conversation.findFirst({
+          where: { redditPostId: post.id, redditCommentId: null },
+          select: { id: true },
+        });
+        if (existing) {
+          result.skipped++;
+          continue;
+        }
+        if (threadsFetched >= maxThreads) {
+          stopped = true;
+          break;
+        }
         try {
-          const convo = await provider.getConversation(post.id);
+          threadsFetched++;
+          const convo = await provider.getConversation(post.id, { subreddit: post.subreddit });
           const ingest = await ingestConversation(convo.post, convo.comments, source);
           if (ingest.newLead) result.newLeads++;
           if (ingest.created) {

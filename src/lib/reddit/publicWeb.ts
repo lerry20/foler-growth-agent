@@ -11,7 +11,20 @@ import type {
 } from "./types";
 import { RedditProviderError } from "./types";
 
-const MIN_INTERVAL_MS = 2000;
+const MIN_INTERVAL_MS = 6500;
+const postSubreddits = new Map<string, string>();
+
+export function threadUrls(postId: string, subreddit?: string): { json: string; rss: string } {
+  return subreddit
+    ? {
+        json: `https://www.reddit.com/r/${subreddit}/comments/${postId}.json`,
+        rss: `https://www.reddit.com/r/${subreddit}/comments/${postId}/.rss`,
+      }
+    : {
+        json: `https://www.reddit.com/comments/${postId}.json`,
+        rss: `https://www.reddit.com/comments/${postId}/.rss`,
+      };
+}
 let queue: Promise<void> = Promise.resolve();
 
 function throttle(): Promise<void> {
@@ -69,6 +82,7 @@ export function parseAtomEntries(xml: string): AtomEntry[] {
 
 export function entryToPost(e: AtomEntry): RedditPost {
   const subreddit = e.link.match(/\/r\/([^/]+)\//)?.[1] ?? "";
+  if (subreddit) postSubreddits.set(e.id, subreddit);
   return {
     id: e.id,
     subreddit,
@@ -96,7 +110,12 @@ export function entryToComment(e: AtomEntry, postId: string): RedditComment {
 
 async function fetchRaw(url: string): Promise<Response> {
   await throttle();
-  const res = await fetch(url, { headers: { "User-Agent": env.REDDIT_USER_AGENT } });
+  let res = await fetch(url, { headers: { "User-Agent": env.REDDIT_USER_AGENT } });
+  if (res.status === 429) {
+    const waitSec = Math.min(Number(res.headers.get("Retry-After")) || 60, 120);
+    await new Promise<void>((r) => setTimeout(r, waitSec * 1000));
+    res = await fetch(url, { headers: { "User-Agent": env.REDDIT_USER_AGENT } });
+  }
   if (res.status === 429 || res.status === 403) {
     const retryAfter = Number(res.headers.get("Retry-After")) || 60;
     throw new RedditProviderError(
@@ -195,18 +214,20 @@ export class PublicWebProvider implements RedditProvider {
     const res = await fetchJsonOrRss(jsonUrl, rssUrl);
     if (res.kind === "json") {
       const children = (res.data as { data?: { children?: JsonChild[] } }).data?.children ?? [];
-      return children.filter((c) => c.kind === "t3").map((c) => jsonPost(c.data));
+      return children.filter((c) => c.kind === "t3").map((c) => {
+        const p = jsonPost(c.data);
+        if (p.subreddit) postSubreddits.set(p.id, p.subreddit);
+        return p;
+      });
     }
     return parseAtomEntries(res.xml)
       .filter((e) => e.link.includes("/comments/"))
       .map(entryToPost);
   }
 
-  async getPost(postId: string): Promise<RedditPost> {
-    const res = await fetchJsonOrRss(
-      `https://www.reddit.com/comments/${postId}.json`,
-      `https://www.reddit.com/comments/${postId}/.rss`,
-    );
+  async getPost(postId: string, ref?: { subreddit?: string }): Promise<RedditPost> {
+    const urls = threadUrls(postId, ref?.subreddit ?? postSubreddits.get(postId));
+    const res = await fetchJsonOrRss(urls.json, urls.rss);
     if (res.kind === "json") {
       const listing = res.data as { data?: { children?: JsonChild[] } }[];
       const t3 = listing[0]?.data?.children?.find((c) => c.kind === "t3");
@@ -219,11 +240,9 @@ export class PublicWebProvider implements RedditProvider {
     return entryToPost(postEntry);
   }
 
-  async getComments(postId: string): Promise<RedditComment[]> {
-    const res = await fetchJsonOrRss(
-      `https://www.reddit.com/comments/${postId}.json`,
-      `https://www.reddit.com/comments/${postId}/.rss`,
-    );
+  async getComments(postId: string, ref?: { subreddit?: string }): Promise<RedditComment[]> {
+    const urls = threadUrls(postId, ref?.subreddit ?? postSubreddits.get(postId));
+    const res = await fetchJsonOrRss(urls.json, urls.rss);
     if (res.kind === "json") {
       const listing = res.data as { data?: { children?: JsonChild[] } }[];
       const out: RedditComment[] = [];
@@ -235,11 +254,9 @@ export class PublicWebProvider implements RedditProvider {
       .map((e) => entryToComment(e, postId));
   }
 
-  async getConversation(postId: string): Promise<RedditConversation> {
-    const res = await fetchJsonOrRss(
-      `https://www.reddit.com/comments/${postId}.json`,
-      `https://www.reddit.com/comments/${postId}/.rss`,
-    );
+  async getConversation(postId: string, ref?: { subreddit?: string }): Promise<RedditConversation> {
+    const urls = threadUrls(postId, ref?.subreddit ?? postSubreddits.get(postId));
+    const res = await fetchJsonOrRss(urls.json, urls.rss);
     if (res.kind === "json") {
       const listing = res.data as { data?: { children?: JsonChild[] } }[];
       const t3 = listing[0]?.data?.children?.find((c) => c.kind === "t3");
@@ -275,8 +292,8 @@ export class PublicWebProvider implements RedditProvider {
     throw new RedditProviderError("public_web provider cannot post comments (manual mode)", "UNSUPPORTED");
   }
 
-  async getReplies(postId: string, commentId: string | null): Promise<RedditComment[]> {
-    const comments = await this.getComments(postId);
+  async getReplies(postId: string, commentId: string | null, ref?: { subreddit?: string }): Promise<RedditComment[]> {
+    const comments = await this.getComments(postId, ref);
     return comments.filter((c) => c.parentId === commentId);
   }
 }
