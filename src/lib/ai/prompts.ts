@@ -6,6 +6,9 @@ export const ANALYSIS_SCHEMA_DESCRIPTION = `Return ONLY a JSON object with exact
   "hair_concern": string,             // e.g. "diffuse thinning", "receding hairline", "shedding", "" if none
   "treatment": string,                // e.g. "Minoxidil", "Finasteride", "PRP", "" if none
   "treatment_duration": string,       // e.g. "4 months", "" if unknown
+  "problem_theme": string,            // short canonical label (3-7 words, lowercase, no names) naming the CLASS of problem so many posts map to the same theme, e.g. "unsure if treatment is working", "choosing between treatments", "shedding after starting minoxidil"
+  "struggle_tags": string[],          // 1-3 tags from: UNCERTAINTY_IF_WORKING, MEASUREMENT_TRACKING, SIDE_EFFECTS, COST, ACCESS_TO_CARE, CONFLICTING_INFO, EMOTIONAL_DISTRESS, CONSISTENCY_ADHERENCE, DIAGNOSIS_UNCLEAR, TIME_TO_RESULTS, PRODUCT_CHOICE, SOCIAL_STIGMA, OTHER
+  "unmet_need": string,               // one sentence: what would actually help this person that they don't have today
   "intent": "MEASUREMENT" | "UNCERTAINTY" | "TREATMENT_JOURNEY" | "HAIR_PROBLEM" | "PRODUCT_INTENT" | "OTHER",
   "foler_relevance": number,          // 0-100. How relevant is the problem of *measuring/tracking hair or scalp change over time* to this person
   "conversation_opportunity": number, // 0-100. Can we add genuine value by replying right now

@@ -11,6 +11,9 @@ export interface Analysis {
   hair_concern: string;
   treatment: string;
   treatment_duration: string;
+  problem_theme: string;
+  struggle_tags: string[];
+  unmet_need: string;
   intent: "MEASUREMENT" | "UNCERTAINTY" | "TREATMENT_JOURNEY" | "HAIR_PROBLEM" | "PRODUCT_INTENT" | "OTHER";
   foler_relevance: number;
   conversation_opportunity: number;

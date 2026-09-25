@@ -133,6 +133,20 @@ export async function pastePostForm(formData: FormData) {
   return { conversationId: r.conversationId };
 }
 
+export async function regenerateSynthesisAction() {
+  const { generateSynthesis } = await import("@/lib/insights/synthesis");
+  const md = await generateSynthesis();
+  revalidatePath("/insights");
+  return md;
+}
+
+export async function backfillInsightsAction() {
+  const { backfillInsights } = await import("@/lib/insights/backfill");
+  const n = await backfillInsights({ limit: 20 });
+  revalidatePath("/insights");
+  return n;
+}
+
 export async function runCycleNowAction() {
   const { runScheduledCycle } = await import("@/lib/scheduler");
   const r = await runScheduledCycle();

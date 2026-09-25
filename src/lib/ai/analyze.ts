@@ -189,6 +189,9 @@ export async function qualifyConversation(
       lastAnalysis: result as unknown as object,
       lastAnalyzedAt: new Date(),
       analysisProvider: provider,
+      problemTheme: analysis.problem_theme,
+      struggleTags: analysis.struggle_tags,
+      unmetNeed: analysis.unmet_need,
     },
   });
 
