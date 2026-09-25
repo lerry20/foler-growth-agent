@@ -12,7 +12,6 @@
     "pretest": "npm run test:db",
     "test:db": "node scripts/test-db.mjs",
     "discover": "tsx scripts/discover.ts",
-    "telegram:webhook": "tsx --env-file=.env scripts/set-telegram-webhook.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

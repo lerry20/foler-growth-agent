@@ -40,7 +40,7 @@ public conversations ──▶ discover ──▶ AI analyze ──▶ Insights 
 |---|---|---|---|
 | Approve · Edit · Reject · Snooze | Copy · Open thread · "I posted it" | Check for replies | Draft follow-up (→ approval again) |
 
-Nothing is ever posted by the software. You approve, you copy, you paste from your own account, you confirm. The same loop is available from your phone via Telegram cards.
+Nothing is ever posted by the software. You approve, you copy, you paste from your own account, you confirm.
 
 ### 3. Guardrails (non-negotiable)
 - **Human in the loop** on every outbound message; stale or conflicting approvals are refused.
@@ -61,7 +61,7 @@ Clinical data systems know what happens *inside* the health system. FOLĒR Pulse
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · Tailwind · Prisma 6 + PostgreSQL (Supabase) · Anthropic Claude (with deterministic heuristic fallback) · Telegram Bot API · Vitest · Vercel.
+Next.js 14 (App Router) · TypeScript · Tailwind · Prisma 6 + PostgreSQL (Supabase) · Anthropic Claude (with deterministic heuristic fallback) · Vitest · Vercel.
 
 Reddit access is behind a provider abstraction: `mock` (labelled demo data), `public_web` (read-only RSS/JSON, no posting), `official_api` (OAuth script app, optional), `manual` (paste replies by hand).
 
@@ -74,7 +74,6 @@ Reddit access is behind a provider abstraction: `mock` (labelled demo data), `pu
 3. `.env` (see `.env.example`):
    - `DATABASE_URL` — required.
    - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` — optional; without a key the labelled heuristic analyzer runs.
-   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (send `/start` to your bot, it replies with the id), `TELEGRAM_MODE` (`polling` | `webhook` + `TELEGRAM_WEBHOOK_SECRET`).
    - `REDDIT_PROVIDER` (`mock` | `public_web` | `official_api`), `REDDIT_USER_AGENT`, `REDDIT_OUR_USERNAME`.
    - `APP_BASE_URL`, `DASHBOARD_PASSWORD`, `ATTRIBUTION_WEBHOOK_SECRET`, `CRON_SECRET`.
 4. `npx prisma db seed` — search categories, communities, knowledge base, and (non-production) 6 labelled `[MOCK]` conversations.
@@ -82,15 +81,14 @@ Reddit access is behind a provider abstraction: `mock` (labelled demo data), `pu
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Dev server (starts Telegram poller) |
+| `npm run dev` | Dev server |
 | `npm run discover` | One discovery sweep: search → ingest → analyze → draft actions |
 | `npm test` | Vitest against the test DB |
 | `npm run lint` / `npm run typecheck` / `npm run build` | Checks |
-| `npm run telegram:webhook` | Register/delete the Telegram webhook |
 
 ## Deploy
 
-Vercel + Supabase Postgres. Set the env vars above in Vercel (use the Supabase **transaction pooler** URL with `?pgbouncer=true&connection_limit=1`), set `vercel.json` `regions` to the region of your database, run `npx prisma db push` once from a laptop, then `npm run telegram:webhook`. `POST /api/cron/run` (header `x-cron-secret`) runs one cycle: monitor replies → discover → draft actions; `vercel.json` registers a daily cron and `.github/workflows/scheduler.yml` can call it every 30 min.
+Vercel + Supabase Postgres. Set the env vars above in Vercel (use the Supabase **transaction pooler** URL with `?pgbouncer=true&connection_limit=1`), set `vercel.json` `regions` to the region of your database, run `npx prisma db push` once from a laptop. `POST /api/cron/run` (header `x-cron-secret`) runs one cycle: monitor replies → discover → draft actions; `vercel.json` registers a daily cron and `.github/workflows/scheduler.yml` can call it every 30 min.
 
 Note: Reddit blocks anonymous reads from most cloud IPs, so `public_web` discovery generally has to run from a laptop (`npm run discover` pointed at the production `DATABASE_URL`) or via the official API.
 

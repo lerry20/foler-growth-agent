@@ -208,8 +208,6 @@ model Action {
   // Incremented snapshot of the conversation when generated; approvals for a
   // different version are stale and must not execute.
   conversationVersion Int         @default(0)
-  telegramMessageId  Int?
-  telegramChatId     String?
   approvedAt         DateTime?
   rejectedAt         DateTime?
   executedAt         DateTime?
