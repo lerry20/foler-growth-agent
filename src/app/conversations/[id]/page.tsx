@@ -14,7 +14,7 @@ import { ExternalLink } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 const BOT_AUTHORS = new Set(["AutoModerator"]);
-const LONG = 320;
+const LONG = 220;
 
 function fmt(d: Date) {
   return d.toISOString().slice(0, 16).replace("T", " ");
@@ -26,6 +26,30 @@ function cleanPost(s: string) {
 
 function pretty(s: string) {
   return s.toLowerCase().replace(/_/g, " ");
+}
+
+/** Splits "[gated: X → Y] rest" into a gate label and body, and body into first sentence + remainder. */
+function splitReason(reason: string) {
+  const m = reason.match(/^\s*\[([^\]]+)\]\s*([\s\S]*)$/);
+  const gate = m ? m[1] : null;
+  const body = (m ? m[2] : reason).trim();
+  const m2 = /[.!?]\s+(?=[A-Z])/.exec(body);
+  const cut = m2 ? m2.index + 1 : -1;
+  const first = cut > 0 ? body.slice(0, cut) : body;
+  const rest = cut > 0 ? body.slice(cut).trim() : "";
+  return { gate, first, rest };
+}
+
+function Clamp({ text, limit = LONG, className = "" }: { text: string; limit?: number; className?: string }) {
+  if (text.length <= limit) return <div className={`whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed ${className}`}>{text}</div>;
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <div className={`group-open:hidden leading-relaxed ${className}`}>{text.slice(0, limit).trimEnd()}… <span className="text-[12px] text-zinc-400">show more</span></div>
+      </summary>
+      <div className={`whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed ${className}`}>{text}</div>
+    </details>
+  );
 }
 
 function Chip({ children, tone = "zinc" }: { children: React.ReactNode; tone?: "zinc" | "green" | "amber" | "red" }) {
@@ -62,26 +86,17 @@ function Fold({ summary, children }: { summary: string; children: React.ReactNod
 }
 
 function Message({ author, at, content, outbound, muted }: { author: string; at: Date; content: string; outbound: boolean; muted: boolean }) {
-  const long = content.length > LONG;
-  const body = <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">{content}</div>;
   return (
-    <div className={`rounded-lg border p-3 ${outbound ? "border-emerald-200 bg-emerald-50/60" : "border-zinc-200"}`}>
-      <div className="mb-1.5 flex items-center gap-2 text-[11px] text-zinc-400">
+    <div className={`rounded-lg border px-3 py-2 ${outbound ? "border-emerald-200 bg-emerald-50/60" : "border-zinc-200"}`}>
+      <div className="mb-1 flex items-center gap-2 text-[11px] text-zinc-400">
         <span className={outbound ? "font-medium text-emerald-700" : "font-medium text-zinc-600"}>u/{author}</span>
         <span>{fmt(at)}</span>
         {outbound && <Chip tone="green">you</Chip>}
         {muted && <Chip>bot</Chip>}
       </div>
       {muted ? (
-        <Fold summary="Show moderator message">{body}</Fold>
-      ) : long ? (
-        <details className="group">
-          <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-            <div className="text-zinc-700 group-open:hidden">{content.slice(0, LONG)}… <span className="text-[12px] text-zinc-400">show more</span></div>
-          </summary>
-          {body}
-        </details>
-      ) : body}
+        <Fold summary="Show moderator message"><Clamp text={content} /></Fold>
+      ) : <Clamp text={content} className="text-zinc-700" />}
     </div>
   );
 }
@@ -121,7 +136,6 @@ export default async function ConversationPage({ params }: { params: { id: strin
           {lead.isMock && <Chip tone="amber">mock</Chip>}
           <Chip tone={catTone}>score {lead.leadScore} · {lead.category.toLowerCase()}</Chip>
           <Chip>{pretty(c.stage)}</Chip>
-          <Chip>{pretty(lead.intent)}</Chip>
           {c.permissionState !== "NO_FOLER_MENTION" && <Chip tone="green">{pretty(c.permissionState)}</Chip>}
         </div>
       </header>
@@ -176,17 +190,26 @@ export default async function ConversationPage({ params }: { params: { id: strin
             ) : null
           )}
 
-          <Card title="Thread">
-            <div className="space-y-3">
+          <Card title={`Thread · ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}>
+            <div className="space-y-2">
               {post && (
-                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-                  <div className="mb-1.5 text-[11px] text-zinc-400"><span className="font-medium text-zinc-600">u/{post.author}</span> · {fmt(post.postedAt)}</div>
-                  <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">{cleanPost(post.content)}</div>
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+                  <div className="mb-1 text-[11px] text-zinc-400"><span className="font-medium text-zinc-600">u/{post.author}</span> · {fmt(post.postedAt)} · original post</div>
+                  <Clamp text={cleanPost(post.content)} />
                 </div>
               )}
-              {replies.map((m) => (
+              {replies.slice(0, 3).map((m) => (
                 <Message key={m.id} author={m.author} at={m.postedAt} content={m.content} outbound={m.direction === "OUTBOUND"} muted={BOT_AUTHORS.has(m.author)} />
               ))}
+              {replies.length > 3 && (
+                <Fold summary={`Show ${replies.length - 3} more ${replies.length - 3 === 1 ? "reply" : "replies"}`}>
+                  <div className="space-y-2">
+                    {replies.slice(3).map((m) => (
+                      <Message key={m.id} author={m.author} at={m.postedAt} content={m.content} outbound={m.direction === "OUTBOUND"} muted={BOT_AUTHORS.has(m.author)} />
+                    ))}
+                  </div>
+                </Fold>
+              )}
               {replies.length === 0 && <div className="text-[12px] text-zinc-400">No replies yet.</div>}
               <div className="flex items-center gap-3 pt-1">
                 <ActionButton label="Refresh from Reddit" action={refreshConversationForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
@@ -207,6 +230,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
             <div className="space-y-3 text-[13px]">
               <p className="leading-relaxed text-zinc-800">{lead.problem || "No problem summary yet."}</p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
+                <dt className="text-zinc-400">Intent</dt><dd>{pretty(lead.intent)}</dd>
                 <dt className="text-zinc-400">Treatment</dt><dd>{lead.treatment || "—"}{lead.treatmentDuration && <span className="text-zinc-500"> · {lead.treatmentDuration}</span>}</dd>
                 <dt className="text-zinc-400">FOLĒR fit</dt><dd className="tabular-nums">{lead.relevanceScore}/100 · conversion {lead.conversionPotential}/100</dd>
                 {lead.accountAgeDays != null && (<><dt className="text-zinc-400">Account</dt><dd>{lead.accountAgeDays}d · {lead.karma ?? "?"} karma</dd></>)}
@@ -226,9 +250,18 @@ export default async function ConversationPage({ params }: { params: { id: strin
 
           {analysis ? (
             <Card title="Why the AI suggests this">
-              <div className="space-y-3 text-[13px]">
-                <p className="leading-relaxed text-zinc-700">{analysis.reason}</p>
-                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+              <div className="space-y-2 text-[13px]">
+                {(() => {
+                  const { gate, first, rest } = splitReason(analysis.reason);
+                  return (
+                    <>
+                      {gate && <Chip tone="amber">{gate}</Chip>}
+                      <p className="leading-relaxed text-zinc-700">{first}</p>
+                      {rest && <Fold summary="Full reasoning"><p className="leading-relaxed text-zinc-600">{rest}</p></Fold>}
+                    </>
+                  );
+                })()}
+                <div className="flex items-center gap-2 pt-1 text-[11px] text-zinc-400">
                   {analysis.provider === "anthropic" ? "Claude analysis" : "heuristic fallback"}
                   {pending && <ActionButton label="Re-analyze" action={reanalyzeForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] hover:bg-zinc-100" />}
                 </div>
