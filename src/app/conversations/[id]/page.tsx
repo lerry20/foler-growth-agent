@@ -88,7 +88,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                 <div className="mb-1 text-[11px] text-zinc-400">
                   u/{m.author} · {m.postedAt.toISOString().slice(0, 16).replace("T", " ")} · {m.direction.toLowerCase()}
                 </div>
-                <div className="whitespace-pre-wrap">{m.content}</div>
+                <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.content}</div>
               </div>
             ))}
             <div className="flex gap-2 pt-2">
@@ -103,7 +103,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
           </div>
         </Card>
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <Card title="AI Copilot">
             {analysis ? (
               <div className="space-y-1">
@@ -118,7 +118,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                 <div className="text-zinc-600"><span className="text-zinc-400">Recommended:</span> {analysis.recommended_action}</div>
                 <div className="text-zinc-600"><span className="text-zinc-400">Reason:</span> {analysis.reason}</div>
                 {analysis.suggested_response && (
-                  <div className="mt-2 rounded border border-zinc-200 bg-zinc-50 p-2 italic">“{analysis.suggested_response}”</div>
+                  <div className="mt-2 rounded border border-zinc-200 bg-zinc-50 p-2 italic break-words [overflow-wrap:anywhere]">“{analysis.suggested_response}”</div>
                 )}
               </div>
             ) : (
@@ -150,7 +150,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                     {pending.errorMessage}
                   </div>
                 )}
-                <div className="rounded border border-zinc-200 bg-zinc-50 p-2 italic">“{pending.proposedResponse}”</div>
+                <div className="rounded border border-zinc-200 bg-zinc-50 p-2 italic break-words [overflow-wrap:anywhere]">“{pending.proposedResponse}”</div>
                 <div className="flex flex-wrap gap-2">
                   <ActionButton label="Approve" action={approveActionForm.bind(null, pending.id, undefined)} />
                   <EditApprove actionId={pending.id} initial={pending.proposedResponse} />
