@@ -35,6 +35,13 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
       await editMessageText(chatId, messageId, original + decisionSuffixHtml(status, String(chatId)));
     };
 
+    const exists = await prisma.action.findUnique({ where: { id: actionId }, select: { id: true } });
+    if (!exists) {
+      await answerCallbackQuery(cb.id, "This card is outdated — the action no longer exists. Use the newer cards or the dashboard.");
+      await append("EXPIRED (action not found)");
+      return;
+    }
+
     if (verb === "approve") {
       const res = await approveAction(actionId, { by: `telegram:${chatId}`, expectedVersion: version });
       if (!res.ok) {
