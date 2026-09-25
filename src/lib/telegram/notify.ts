@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { isTelegramConfigured, sendMessage, type InlineButton } from "./client";
-import { approvalMessageHtml } from "./templates";
+import { approvalMessageHtml, manualPostHtml } from "./templates";
 import type { Action, Conversation, Lead } from "@prisma/client";
 
 const LOCAL_HOST = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i;
@@ -10,6 +10,17 @@ function dashboardRows(conversationId: string): InlineButton[][] {
   const base = env.APP_BASE_URL;
   if (!base || LOCAL_HOST.test(base)) return [];
   return [[{ text: "Open dashboard", url: `${base}/conversations/${conversationId}` }]];
+}
+
+export async function sendManualPostInstructions(action: Action, conversation: Conversation): Promise<void> {
+  if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return;
+  await sendMessage(env.TELEGRAM_CHAT_ID, manualPostHtml(action, conversation), {
+    inline_keyboard: [
+      [{ text: "Open Reddit thread", url: conversation.redditUrl }],
+      [{ text: "✅ I posted it", callback_data: `cb:posted:${action.id}` }],
+      ...dashboardRows(conversation.id),
+    ],
+  });
 }
 
 export async function sendActionForApproval(

@@ -6,7 +6,7 @@ import { pauseOutbound } from "@/lib/health";
 import { advanceStage } from "@/lib/pipeline";
 import { ourUsername } from "@/lib/ingest";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
-import { sendActionForApproval } from "@/lib/telegram/notify";
+import { sendActionForApproval, sendManualPostInstructions } from "@/lib/telegram/notify";
 import type { Action, ActionStatus, LeadStage, PermissionState } from "@prisma/client";
 
 export async function generateAction(conversationId: string, opts?: { force?: boolean }): Promise<Action | null> {
@@ -141,7 +141,12 @@ export async function executeAction(actionId: string): Promise<void> {
   const action = await prisma.action.findUniqueOrThrow({ where: { id: actionId } });
   const provider = await getRedditProvider();
   if (!provider.capabilities.createComment) {
-    await prisma.action.update({ where: { id: actionId }, data: { status: "MANUAL_REQUIRED" } });
+    const updated = await prisma.action.update({
+      where: { id: actionId },
+      data: { status: "MANUAL_REQUIRED" },
+      include: { conversation: true },
+    });
+    await sendManualPostInstructions(updated, updated.conversation);
     return;
   }
   await prisma.action.update({ where: { id: actionId }, data: { status: "EXECUTING" } });

@@ -1,6 +1,6 @@
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
-import { approveAction, rejectAction, snoozeAction } from "@/lib/actions";
+import { approveAction, markPosted, rejectAction, snoozeAction } from "@/lib/actions";
 import { getSetting, setSetting } from "@/lib/settings";
 import { answerCallbackQuery, editMessageText, sendMessage } from "./client";
 import type { TelegramUpdate } from "./client";
@@ -50,6 +50,15 @@ export async function handleUpdate(update: TelegramUpdate): Promise<void> {
       } else {
         await answerCallbackQuery(cb.id, "Approved");
         await append("APPROVED");
+      }
+    } else if (verb === "posted") {
+      const action = await prisma.action.findUniqueOrThrow({ where: { id: actionId }, include: { conversation: true } });
+      if (action.status !== "MANUAL_REQUIRED" && action.status !== "POSTED") {
+        await answerCallbackQuery(cb.id, `Not awaiting manual post (status: ${action.status})`);
+      } else {
+        await markPosted(actionId, { by: `telegram:${chatId}`, url: action.conversation.redditUrl });
+        await answerCallbackQuery(cb.id, "Marked as posted — monitoring replies");
+        await append("POSTED");
       }
     } else if (verb === "reject") {
       const action = await prisma.action.findUnique({ where: { id: actionId } });
