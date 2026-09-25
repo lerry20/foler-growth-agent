@@ -25,7 +25,7 @@ export function EditApprove({ actionId, initial }: { actionId: string; initial: 
         <button
           onClick={async () => {
             const r = await approveActionForm(actionId, text);
-            setMsg(r.ok ? "Approved" : (r.reason ?? "Failed"));
+            setMsg(r.message);
           }}
           className="rounded bg-zinc-900 px-2 py-1 text-[11px] text-white"
         >

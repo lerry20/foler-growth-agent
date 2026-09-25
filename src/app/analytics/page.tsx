@@ -4,14 +4,16 @@ import { Funnel, Card } from "@/components/Funnel";
 
 export const dynamic = "force-dynamic";
 
-function Table({ title, rows }: { title: string; rows: [string, number][] }) {
+const nice = (s: string) => (s === "(none)" ? "not stated" : s.toLowerCase().replace(/_/g, " "));
+
+function Table({ title, hint, rows }: { title: string; hint?: string; rows: [string, number][] }) {
   return (
-    <Card title={title}>
+    <Card title={title} hint={hint}>
       <table className="w-full text-[12px]">
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k} className="border-b border-zinc-100 last:border-0">
-              <td className="py-1">{k}</td>
+              <td className="py-1 capitalize">{nice(k)}</td>
               <td className="py-1 text-right tabular-nums font-medium">{v}</td>
             </tr>
           ))}
@@ -72,34 +74,37 @@ export default async function AnalyticsPage() {
   const total = leads.length;
   for (const [sub, n] of count((l) => l.subreddit)) {
     const relevant = leads.filter((l) => l.subreddit === sub && l.category !== "IGNORE").length;
-    if (relevant >= 3) insights.push(`r/${sub} produced ${relevant} of ${total} leads with non-IGNORE category (${n} total).`);
+    if (relevant >= 3) insights.push(`r/${sub}: ${relevant} of its ${n} people are relevant to us (${total} people total).`);
   }
   const hotByIntent = leads.filter((l) => l.category === "HOT");
   if (hotByIntent.length >= 3) {
     const top = count((l) => (hotByIntent.includes(l) ? l.intent : "")).filter(([k]) => k !== "(none)")[0];
-    if (top) insights.push(`Most common intent among HOT leads: ${top[0]} (${top[1]}).`);
+    if (top) insights.push(`Strong-fit people most often want: ${nice(top[0])} (${top[1]}).`);
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Analytics</h1>
+      <div>
+        <h1 className="text-lg font-semibold">Analytics</h1>
+        <p className="text-[13px] text-zinc-500">How the outreach loop performs: from people found to waitlist signups. For what people struggle with, see Insights.</p>
+      </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card title="Funnel"><Funnel steps={funnel} /></Card>
-        <Card title="Timings & volume">
-          <div className="flex justify-between py-1"><span className="text-zinc-500">Avg messages / conversation</span><span className="font-medium tabular-nums">{avgLen}</span></div>
-          <div className="flex justify-between py-1"><span className="text-zinc-500">Median discovered → FOLĒR introduced</span><span className="font-medium tabular-nums">{medianMs("LEAD_DISCOVERED", "FOLER_INTRODUCED") ?? "—"}</span></div>
-          <div className="flex justify-between py-1"><span className="text-zinc-500">Median discovered → waitlist signup</span><span className="font-medium tabular-nums">{medianMs("LEAD_DISCOVERED", "WAITLIST_SIGNUP") ?? "—"}</span></div>
+        <Card title="From found to signed up" hint="Each step counts people who reached at least that stage."><Funnel steps={funnel} /></Card>
+        <Card title="Speed" hint="Median time from finding a person to each milestone.">
+          <div className="flex justify-between py-1"><span className="text-zinc-500">Messages per conversation (avg)</span><span className="font-medium tabular-nums">{avgLen}</span></div>
+          <div className="flex justify-between py-1"><span className="text-zinc-500">Found → FOLĒR mentioned</span><span className="font-medium tabular-nums">{medianMs("LEAD_DISCOVERED", "FOLER_INTRODUCED") ?? "—"}</span></div>
+          <div className="flex justify-between py-1"><span className="text-zinc-500">Found → signed up</span><span className="font-medium tabular-nums">{medianMs("LEAD_DISCOVERED", "WAITLIST_SIGNUP") ?? "—"}</span></div>
         </Card>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Table title="By subreddit" rows={count((l) => l.subreddit)} />
-        <Table title="By intent" rows={count((l) => l.intent)} />
-        <Table title="By treatment" rows={count((l) => l.treatment)} />
-        <Table title="By category" rows={count((l) => l.category)} />
+        <Table title="Where people come from" rows={count((l) => l.subreddit)} />
+        <Table title="What they want" hint="Intent behind the post." rows={count((l) => l.intent)} />
+        <Table title="What they use" hint="Treatment mentioned." rows={count((l) => l.treatment)} />
+        <Table title="How well we can help" hint="Hot = strong fit, ignore = not for us." rows={count((l) => l.category)} />
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Table title="Posted interactions by type" rows={actionCounts} />
-        <Card title="Insights">
+        <Table title="Replies you posted, by kind" rows={actionCounts} />
+        <Card title="Patterns">
           {insights.length ? (
             <ul className="list-disc space-y-1 pl-4">{insights.map((i, n) => <li key={n}>{i}</li>)}</ul>
           ) : (

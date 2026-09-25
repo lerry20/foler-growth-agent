@@ -150,7 +150,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   <div className="flex flex-wrap items-center gap-2">
                     <CopyButton text={pending.finalResponse ?? pending.proposedResponse} />
                     <a href={c.redditUrl} target="_blank" rel="noreferrer" className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100">Open thread</a>
-                    <ActionButton label="I posted it" action={markPostedForm.bind(null, pending.id)} />
+                    <ActionButton label="I posted it" title="Tell the agent the comment is live so it starts watching for replies" action={markPostedForm.bind(null, pending.id)} />
                   </div>
                 </div>
               </Card>
@@ -164,15 +164,15 @@ export default async function ConversationPage({ params }: { params: { id: strin
                   )}
                   <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{pending.proposedResponse}</div>
                   <div className="flex flex-wrap gap-2">
-                    <ActionButton label="Approve" action={approveActionForm.bind(null, pending.id, undefined)} />
+                    <ActionButton label="Approve" title="Approve as written — you still post it yourself" action={approveActionForm.bind(null, pending.id, undefined)} />
                     <EditApprove actionId={pending.id} initial={pending.proposedResponse} />
-                    <ActionButton label="Reject" action={rejectActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
-                    <ActionButton label="Snooze" action={snoozeActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+                    <ActionButton label="Reject" title="Drop this draft; nothing is posted" action={rejectActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+                    <ActionButton label="Snooze 24h" title="Hide it for a day" action={snoozeActionForm.bind(null, pending.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
                   </div>
                 </div>
               </Card>
             ) : analysis ? (
-              <Card title="AI suggestion">
+              <Card title={analysis.recommended_action === "IGNORE" ? "No reply recommended" : "No draft yet"}>
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Chip tone={analysis.recommended_action === "IGNORE" ? "zinc" : "green"}>{pretty(analysis.recommended_action)}</Chip>
@@ -182,8 +182,7 @@ export default async function ConversationPage({ params }: { params: { id: strin
                     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 leading-relaxed break-words [overflow-wrap:anywhere]">{analysis.suggested_response}</div>
                   )}
                   <div className="flex gap-2">
-                    <ActionButton label="Create action" action={generateActionForm.bind(null, c.id)} />
-                    <ActionButton label="Re-analyze" action={reanalyzeForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+                    <ActionButton label="Draft a reply" title="Claude writes a reply for you to approve" action={generateActionForm.bind(null, c.id)} />
                   </div>
                 </div>
               </Card>
@@ -212,12 +211,12 @@ export default async function ConversationPage({ params }: { params: { id: strin
               )}
               {replies.length === 0 && <div className="text-[12px] text-zinc-400">No replies yet.</div>}
               <div className="flex items-center gap-3 pt-1">
-                <ActionButton label="Refresh from Reddit" action={refreshConversationForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
-                <Fold summary="Import a reply manually">
+                <ActionButton label="Check for new comments" title="Re-read the thread on Reddit" action={refreshConversationForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
+                <Fold summary="Paste a reply by hand">
                   <form action={async (fd: FormData) => { "use server"; await importReplyForm(c.id, fd); }} className="space-y-2">
                     <input name="author" placeholder="author" required className="w-full rounded border border-zinc-300 px-2 py-1" />
                     <textarea name="content" placeholder="reply text" required rows={3} className="w-full rounded border border-zinc-300 px-2 py-1" />
-                    <button className="rounded bg-zinc-900 px-3 py-1 text-[12px] text-white">Import reply</button>
+                    <button className="rounded bg-zinc-900 px-3 py-1 text-[12px] text-white">Add reply</button>
                   </form>
                 </Fold>
               </div>
@@ -263,18 +262,15 @@ export default async function ConversationPage({ params }: { params: { id: strin
                 })()}
                 <div className="flex items-center gap-2 pt-1 text-[11px] text-zinc-400">
                   {analysis.provider === "anthropic" ? "Claude analysis" : "heuristic fallback"}
-                  {pending && <ActionButton label="Re-analyze" action={reanalyzeForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] hover:bg-zinc-100" />}
+                  <ActionButton label="Analyze again" title="Re-read the whole thread and redo the analysis" action={reanalyzeForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] hover:bg-zinc-100" />
                 </div>
               </div>
             </Card>
           ) : (
-            <Card title="AI Copilot">
+            <Card title="Not analyzed yet">
               <div className="space-y-3">
-                <div className="text-[13px] text-zinc-400">Not analyzed yet.</div>
-                <div className="flex gap-2">
-                  <ActionButton label="Analyze" action={reanalyzeForm.bind(null, c.id)} />
-                  <ActionButton label="Generate action" action={generateActionForm.bind(null, c.id)} className="rounded border border-zinc-300 px-2 py-1 text-[11px] hover:bg-zinc-100" />
-                </div>
+                <div className="text-[13px] text-zinc-400">Claude hasn&apos;t read this thread yet.</div>
+                <ActionButton label="Analyze" title="Read the thread and classify the problem" action={reanalyzeForm.bind(null, c.id)} />
               </div>
             </Card>
           )}

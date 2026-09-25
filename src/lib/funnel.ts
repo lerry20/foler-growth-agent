@@ -3,14 +3,14 @@ import { STAGE_ORDER } from "@/lib/pipeline";
 import type { LeadStage } from "@prisma/client";
 
 export const FUNNEL_STEPS: { label: string; stage?: LeadStage }[] = [
-  { label: "DISCOVERED", stage: "DISCOVERED" },
-  { label: "RELEVANT" },
-  { label: "QUALIFIED", stage: "QUALIFIED" },
-  { label: "ENGAGED", stage: "ENGAGED" },
-  { label: "ACTIVE", stage: "ACTIVE_CONVERSATION" },
-  { label: "FOLER INTRODUCED", stage: "FOLER_INTRODUCED" },
-  { label: "WAITLIST INVITED", stage: "WAITLIST_INVITED" },
-  { label: "WAITLIST SIGNUP", stage: "WAITLIST_SIGNUP" },
+  { label: "Found", stage: "DISCOVERED" },
+  { label: "Relevant" },
+  { label: "Analyzed", stage: "QUALIFIED" },
+  { label: "We replied", stage: "ENGAGED" },
+  { label: "Talking", stage: "ACTIVE_CONVERSATION" },
+  { label: "FOLĒR mentioned", stage: "FOLER_INTRODUCED" },
+  { label: "Waitlist link sent", stage: "WAITLIST_INVITED" },
+  { label: "Signed up", stage: "WAITLIST_SIGNUP" },
 ];
 
 export async function funnelCounts(): Promise<{ label: string; count: number }[]> {
