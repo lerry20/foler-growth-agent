@@ -49,7 +49,7 @@ export default async function SettingsPage() {
         <p className="text-[13px] text-zinc-500">What the agent listens for, where, and what it is allowed to say. Change the first two to point Pulse at another health area.</p>
       </div>
 
-      <Card title="What we listen for" hint="One search term per line. The agent searches every enabled community for each term, every 30 min.">
+      <Card title="What we listen for" hint="One term per line. Every 30 min the agent reads the newest posts in each enabled community and keeps those mentioning any term.">
         <div className="space-y-3">
           {categories.map((c) => (
             <ActionForm key={c.id} action={async (fd: FormData) => { "use server"; await saveSearchCategory(c.id, String(fd.get("terms") ?? "").split("\n").map((t) => t.trim()).filter(Boolean), fd.get("enabled") === "on"); }} className="rounded-md border border-zinc-200 p-3">

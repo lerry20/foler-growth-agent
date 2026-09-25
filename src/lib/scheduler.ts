@@ -45,7 +45,7 @@ export async function runScheduledCycle(opts?: {
     try {
       result.discovery = await runDiscovery({
         limitPerTerm: opts?.limitPerTerm ?? 3,
-        maxThreads: opts?.maxThreads ?? 5,
+        maxThreads: opts?.maxThreads ?? 25,
       });
       result.errors.push(...result.discovery.errors.map((e) => `discovery: ${e}`));
     } catch (err) {
