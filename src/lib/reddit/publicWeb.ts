@@ -225,6 +225,24 @@ export class PublicWebProvider implements RedditProvider {
       .map(entryToPost);
   }
 
+  async listNewPosts(subreddit: string, limit = 100): Promise<RedditPost[]> {
+    const res = await fetchJsonOrRss(
+      `https://www.reddit.com/r/${subreddit}/new.json?limit=${limit}`,
+      `https://www.reddit.com/r/${subreddit}/new/.rss?limit=${limit}`,
+    );
+    if (res.kind === "json") {
+      const children = (res.data as { data?: { children?: JsonChild[] } }).data?.children ?? [];
+      return children.filter((c) => c.kind === "t3").map((c) => {
+        const p = jsonPost(c.data);
+        if (p.subreddit) postSubreddits.set(p.id, p.subreddit);
+        return p;
+      });
+    }
+    return parseAtomEntries(res.xml)
+      .filter((e) => e.link.includes("/comments/"))
+      .map(entryToPost);
+  }
+
   async getPost(postId: string, ref?: { subreddit?: string }): Promise<RedditPost> {
     const urls = threadUrls(postId, ref?.subreddit ?? postSubreddits.get(postId));
     const res = await fetchJsonOrRss(urls.json, urls.rss);

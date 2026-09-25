@@ -82,6 +82,8 @@ export interface RedditProvider {
   readonly name: RedditProviderName;
   readonly capabilities: ProviderCapabilities;
   searchPosts(query: string, options?: SearchOptions): Promise<RedditPost[]>;
+  /** Newest posts of one subreddit, most recent first. One request for up to 100 posts. */
+  listNewPosts?(subreddit: string, limit?: number): Promise<RedditPost[]>;
   getPost(postId: string, ref?: ThreadRef): Promise<RedditPost>;
   getComments(postId: string, ref?: ThreadRef): Promise<RedditComment[]>;
   getUser(username: string): Promise<RedditUser>;

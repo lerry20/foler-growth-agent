@@ -149,8 +149,8 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
             <div>
               <div className="pulse-eyebrow mb-2">How posts are selected</div>
               <ol className="pulse-steps">
-                <li><b>Search</b> {m.monitoredCommunities.length} communities with {m.searchTerms} fixed terms, newest first — nothing is hand-picked.</li>
-                <li><b>Keep</b> posts ≤ {m.scanWindowDays} days old that we have not read before.</li>
+                <li><b>Pull</b> the newest posts from {m.monitoredCommunities.length} communities (up to 100 each per pass) — nothing is hand-picked.</li>
+                <li><b>Keep</b> posts that mention one of {m.searchTerms} fixed terms, are ≤ {m.scanWindowDays} days old and that we have not read before.</li>
                 <li><b>Read</b> the full thread: post + every comment.</li>
                 <li><b>Classify</b> each one with {m.model}; all {totals.analyzed} analyzed conversations count, whether or not we reply.</li>
               </ol>

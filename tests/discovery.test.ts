@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
-import { runDiscovery } from "@/lib/discovery";
+import { matchesTerms, runDiscovery } from "@/lib/discovery";
 import { RedditProviderError } from "@/lib/reddit/types";
 import { MockProvider } from "@/lib/reddit/mock";
+import { MOCK_CONVERSATIONS } from "@/lib/reddit/mockData";
 import { env } from "@/lib/env";
 import { resetDb } from "./helpers";
 
@@ -44,5 +45,44 @@ describe("discovery rate-limit handling", () => {
     const res = await runDiscovery({ limitPerTerm: 5 });
     expect(res.errors).toHaveLength(0);
     expect(res.newConversations).toBeGreaterThan(0);
+  });
+
+  it("uses the subreddit feed when available and matches terms locally", async () => {
+    const mock = new MockProvider();
+    const all = MOCK_CONVERSATIONS.map((c) => c.post);
+    const feed = vi.fn(async () => all);
+    const search = vi.spyOn(mock, "searchPosts");
+    Object.assign(mock, { listNewPosts: feed });
+    vi.mocked(getRedditProvider).mockResolvedValue(mock);
+
+    const res = await runDiscovery();
+    expect(feed).toHaveBeenCalledTimes(1);
+    expect(feed).toHaveBeenCalledWith("tressless", 100);
+    expect(search).not.toHaveBeenCalled();
+    expect(res.scanned).toBe(all.length);
+    const expected = all.filter((p) => matchesTerms(p, ["minoxidil"])).length;
+    expect(expected).toBeGreaterThan(0);
+    expect(res.newConversations).toBe(expected);
+  });
+});
+
+describe("matchesTerms", () => {
+  const post = (title: string, body = "") => ({ title, body });
+
+  it("is case-insensitive and matches in title or body", () => {
+    expect(matchesTerms(post("Is Minoxidil worth it?"), ["minoxidil"])).toBe(true);
+    expect(matchesTerms(post("help", "started fin 3 months ago"), ["fin"])).toBe(true);
+  });
+
+  it("requires the whole phrase, not a substring", () => {
+    expect(matchesTerms(post("finally some results"), ["fin"])).toBe(false);
+    expect(matchesTerms(post("is it working?"), ["is it working"])).toBe(true);
+    expect(matchesTerms(post("is it really working?"), ["is it working"])).toBe(false);
+  });
+
+  it("treats punctuation as a boundary and ignores empty terms", () => {
+    expect(matchesTerms(post("(shedding)"), ["shedding"])).toBe(true);
+    expect(matchesTerms(post("shedding."), ["", "  ", "shedding"])).toBe(true);
+    expect(matchesTerms(post("nothing here"), ["", "  "])).toBe(false);
   });
 });
