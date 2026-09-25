@@ -146,6 +146,7 @@ export async function qualifyConversation(
     community,
     leadScore: total,
     hasOutbound: conversation.messages.some((m) => m.direction === "OUTBOUND"),
+    postText: [conversation.title, post?.content].filter(Boolean).join("\n"),
   });
   analysis = gated;
 
@@ -178,6 +179,7 @@ export async function qualifyConversation(
       scoreBreakdown: breakdown as unknown as object,
       category,
       lastActivityAt: new Date(),
+      ...(blocked.some((b) => b.startsWith("Minor protection")) ? { doNotContact: true } : {}),
     },
   });
   await prisma.conversation.update({

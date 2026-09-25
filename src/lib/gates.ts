@@ -14,6 +14,20 @@ export interface GateContext {
   } | null;
   leadScore?: number;
   hasOutbound?: boolean;
+  postText?: string;
+}
+
+const MINOR_PATTERNS = [
+  /\b(?:i'?m|i am|im)\s+(?:a\s+)?1[0-7]\b(?!\s*(?:months?|weeks?|years?\s+(?:on|into|of)))/i,
+  /(?:^|[\s("'—–-])1[0-7]\s*[mf]\b/i,
+  /\b1[0-7]\s*(?:yo|y\/o|years?\s+old)\b/i,
+  /\b(?:as a|being a)\s+1[0-7]\s+year\s+old\b/i,
+  /\b(?:i'?m|i am)\s+(?:only\s+)?1[0-7]\b/i,
+  /\bi'?m a minor\b|\bunder 18\b|\bstill in (?:middle|high) school\b/i,
+];
+
+export function detectsMinor(text: string): boolean {
+  return MINOR_PATTERNS.some((p) => p.test(text));
 }
 
 export const PERMISSION_ORDER: PermissionState[] = [
@@ -90,6 +104,18 @@ export function applyGates(analysis: Analysis, ctx: GateContext): { analysis: An
   const blocked: string[] = [];
   const community = ctx.community;
   const originalAction = a.recommended_action;
+
+  if (ctx.postText && detectsMinor(ctx.postText)) {
+    a.recommended_action = "IGNORE";
+    a.should_mention_foler = false;
+    a.suggested_response = "";
+    a.permission_signal = "NONE";
+    blocked.push("Minor protection: author indicates they are under 18 — no engagement");
+    if (a.recommended_action !== originalAction) {
+      a.reason = `[gated: ${originalAction} → ${a.recommended_action}] ${a.reason}`;
+    }
+    return { analysis: a, blocked };
+  }
 
   const { signal, ignoredReason } = effectivePermissionSignal(a.permission_signal, ctx.permissionState);
   if (ignoredReason) {
