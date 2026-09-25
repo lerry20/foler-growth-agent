@@ -26,11 +26,36 @@ export function threadUrls(postId: string, subreddit?: string): { json: string; 
       };
 }
 let queue: Promise<void> = Promise.resolve();
+/** Earliest time the next request may go out, per Reddit's x-ratelimit-* headers. */
+let notBefore = 0;
 
 function throttle(): Promise<void> {
-  const next = queue.then(() => new Promise<void>((r) => setTimeout(r, MIN_INTERVAL_MS)));
+  const next = queue.then(
+    () =>
+      new Promise<void>((r) =>
+        setTimeout(r, Math.max(MIN_INTERVAL_MS, notBefore - Date.now())),
+      ),
+  );
   queue = next;
   return queue;
+}
+
+const MAX_WAIT_S = 120;
+
+/** Seconds to wait before the next request, from Retry-After or x-ratelimit-reset. */
+export function rateLimitDelaySec(headers: Headers): number {
+  const retryAfter = Number(headers.get("Retry-After"));
+  if (retryAfter > 0) return Math.min(retryAfter, MAX_WAIT_S);
+  const reset = Number(headers.get("x-ratelimit-reset"));
+  if (reset > 0) return Math.min(reset + 2, MAX_WAIT_S);
+  return 60;
+}
+
+function noteRateLimit(res: Response): void {
+  const remaining = Number(res.headers.get("x-ratelimit-remaining"));
+  if (res.status === 429 || (res.headers.has("x-ratelimit-remaining") && remaining < 1)) {
+    notBefore = Math.max(notBefore, Date.now() + rateLimitDelaySec(res.headers) * 1000);
+  }
 }
 
 export function decodeEntities(s: string): string {
@@ -108,20 +133,22 @@ export function entryToComment(e: AtomEntry, postId: string): RedditComment {
   };
 }
 
+const MAX_429_RETRIES = 3;
+
 async function fetchRaw(url: string): Promise<Response> {
   await throttle();
   let res = await fetch(url, { headers: { "User-Agent": env.REDDIT_USER_AGENT } });
-  if (res.status === 429) {
-    const waitSec = Math.min(Number(res.headers.get("Retry-After")) || 60, 120);
-    await new Promise<void>((r) => setTimeout(r, waitSec * 1000));
+  noteRateLimit(res);
+  for (let attempt = 0; res.status === 429 && attempt < MAX_429_RETRIES; attempt++) {
+    await new Promise<void>((r) => setTimeout(r, rateLimitDelaySec(res.headers) * 1000));
     res = await fetch(url, { headers: { "User-Agent": env.REDDIT_USER_AGENT } });
+    noteRateLimit(res);
   }
   if (res.status === 429 || res.status === 403) {
-    const retryAfter = Number(res.headers.get("Retry-After")) || 60;
     throw new RedditProviderError(
       `Reddit returned ${res.status} for ${url}`,
       res.status === 429 ? "RATE_LIMITED" : "FORBIDDEN",
-      retryAfter,
+      rateLimitDelaySec(res.headers),
     );
   }
   if (res.status === 404) throw new RedditProviderError(`not found: ${url}`, "NOT_FOUND");
