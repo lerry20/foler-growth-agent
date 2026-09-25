@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadCategory {
+  HOT
+  WARM
+  COLD
+  IGNORE
+}
+
+enum LeadStage {
+  DISCOVERED
+  QUALIFIED
+  APPROVAL_PENDING
+  HELPING
+  ENGAGED
+  WAITING_FOR_RESPONSE
+  ACTIVE_CONVERSATION
+  FOLER_RELEVANT
+  FOLER_INTRODUCED
+  WAITLIST_INVITED
+  WAITLIST_SIGNUP
+  IGNORED
+  REJECTED
+  NO_RESPONSE
+  NOT_RELEVANT
+  LOST
+}
+
+enum Intent {
+  MEASUREMENT
+  UNCERTAINTY
+  TREATMENT_JOURNEY
+  HAIR_PROBLEM
+  PRODUCT_INTENT
+  OTHER
+}
+
+enum ActionType {
+  IGNORE
+  HELP
+  ENGAGE
+  FOLLOW_UP
+  DM
+  INTRODUCE_FOLER
+  WAITLIST_INVITE
+}
+
+enum ActionStatus {
+  PROPOSED
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  SNOOZED
+  EXECUTING
+  MANUAL_REQUIRED
+  POSTED
+  FAILED
+  SUPERSEDED
+}
+
+enum PermissionState {
+  NO_FOLER_MENTION
+  FOLER_RELEVANCE_DETECTED
+  PERMISSION_REQUESTED
+  PERMISSION_GRANTED
+  FOLER_INTRODUCED
+  INTEREST_DETECTED
+  WAITLIST_INVITED
+  WAITLIST_CLICKED
+  WAITLIST_SIGNUP
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum EventType {
+  LEAD_DISCOVERED
+  LEAD_QUALIFIED
+  ACTION_GENERATED
+  ACTION_APPROVAL_REQUESTED
+  ACTION_APPROVED
+  ACTION_REJECTED
+  ACTION_SNOOZED
+  COMMENT_POSTED
+  USER_REPLIED
+  FOLER_RELEVANCE_DETECTED
+  PERMISSION_REQUESTED
+  PERMISSION_GRANTED
+  FOLER_INTRODUCED
+  WAITLIST_INVITED
+  WAITLIST_CLICKED
+  WAITLIST_SIGNUP
+  OUTBOUND_PAUSED
+  OUTBOUND_RESUMED
+  PROVIDER_ERROR
+  STAGE_CHANGED
+}
+
+enum RedditSource {
+  MOCK
+  PUBLIC_WEB
+  OFFICIAL_API
+  MANUAL_IMPORT
+}
+
+model Lead {
+  id                      String       @id @default(cuid())
+  redditUsername          String       @unique
+  profileUrl              String
+  subreddit               String
+  firstDiscoveredAt       DateTime     @default(now())
+  lastActivityAt          DateTime     @default(now())
+  problem                 String       @default("")
+  hairConcern             String       @default("")
+  treatment               String       @default("")
+  treatmentDuration       String       @default("")
+  intent                  Intent       @default(OTHER)
+  relevanceScore          Int          @default(0)
+  conversationOpportunity Int          @default(0)
+  conversionPotential     Int          @default(0)
+  leadScore               Int          @default(0)
+  scoreBreakdown          Json?
+  category                LeadCategory @default(COLD)
+  stage                   LeadStage    @default(DISCOVERED)
+  isMock                  Boolean      @default(false)
+  doNotContact            Boolean      @default(false)
+  accountAgeDays          Int?
+  karma                   Int?
+  conversations           Conversation[]
+  events                  Event[]
+  conversions             Conversion[]
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  @@index([category, stage])
+  @@index([subreddit])
+}
+
+model Conversation {
+  id               String          @id @default(cuid())
+  leadId           String
+  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  redditPostId     String
+  redditCommentId  String?
+  redditUrl        String
+  subreddit        String
+  title            String          @default("")
+  source           RedditSource    @default(MOCK)
+  stage            LeadStage       @default(DISCOVERED)
+  permissionState  PermissionState @default(NO_FOLER_MENTION)
+  folerRelevance   Int             @default(0)
+  lastActivityAt   DateTime        @default(now())
+  lastAnalysis     Json?
+  lastAnalyzedAt   DateTime?
+  analysisProvider String?
+  snoozedUntil     DateTime?
+  messages         Message[]
+  actions          Action[]
+  events           Event[]
+  conversions      Conversion[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([redditPostId, redditCommentId])
+  @@index([leadId])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  redditId       String?
+  author         String
+  content        String
+  postedAt       DateTime
+  direction      MessageDirection
+  isOriginalPost Boolean          @default(false)
+  actionId       String?          @unique
+  action         Action?          @relation(fields: [actionId], references: [id])
+  createdAt      DateTime         @default(now())
+
+  @@unique([conversationId, redditId])
+  @@index([conversationId, postedAt])
+}
+
+model Action {
+  id                 String       @id @default(cuid())
+  conversationId     String
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  type               ActionType
+  proposedResponse   String       @default("")
+  finalResponse      String?
+  reason             String       @default("")
+  shouldMentionFoler Boolean      @default(false)
+  status             ActionStatus @default(PROPOSED)
+  // Incremented snapshot of the conversation when generated; approvals for a
+  // different version are stale and must not execute.
+  conversationVersion Int         @default(0)
+  telegramMessageId  Int?
+  telegramChatId     String?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  executedAt         DateTime?
+  errorMessage       String?
+  message            Message?
+  events             Event[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([status])
+  @@index([conversationId, createdAt])
+}
+
+model Event {
+  id             String        @id @default(cuid())
+  type           EventType
+  leadId         String?
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  actionId       String?
+  action         Action?       @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  payload        Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([type, createdAt])
+  @@index([leadId, createdAt])
+  @@index([conversationId, createdAt])
+}
+
+model Conversion {
+  id             String        @id @default(cuid())
+  leadId         String
+  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  subreddit      String
+  source         String        @default("reddit")
+  campaign       String        @default("")
+  invitedAt      DateTime      @default(now())
+  clickedAt      DateTime?
+  signedUpAt     DateTime?
+  attribution    Json?
+  createdAt      DateTime      @default(now())
+}
+
+model SearchCategory {
+  id        String   @id @default(cuid())
+  key       String   @unique // MEASUREMENT, UNCERTAINTY, ...
+  name      String
+  enabled   Boolean  @default(true)
+  terms     String[]
+  weight    Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model CommunityConfig {
+  id                    String   @id @default(cuid())
+  name                  String   @unique // without r/
+  enabled               Boolean  @default(true)
+  allowedActions        ActionType[]
+  tone                  String   @default("")
+  promotionSensitivity  String   @default("HIGH") // LOW | MEDIUM | HIGH
+  minAccountAgeDays     Int      @default(0)
+  minKarma              Int      @default(0)
+  rulesUrl              String   @default("")
+  notes                 String   @default("")
+  minRelevanceScore     Int      @default(50)
+  dmAllowed             Boolean  @default(false)
+  folerIntroAllowed     Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+}
+
+// Single-row key/value settings (knowledge base, waitlist URL, provider, etc.)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AccountHealth {
+  id                 String    @id @default("default")
+  redditUsername     String    @default("")
+  accountAgeDays     Int?
+  karma              Int?
+  commentsToday      Int       @default(0)
+  dmsToday           Int       @default(0)
+  removals           Int       @default(0)
+  restrictions       Int       @default(0)
+  errors             Int       @default(0)
+  rateLimitHits      Int       @default(0)
+  outboundPaused     Boolean   @default(false)
+  pausedReason       String?
+  pausedUntil        DateTime?
+  lastError          String?
+  lastRateLimitAt    DateTime?
+  updatedAt          DateTime  @updatedAt
+}
+
+model GeneratedResponse {
+  id        String   @id @default(cuid())
+  actionId  String?
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
