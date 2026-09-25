@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { groupThemes, groupStruggles, countBy, isoWeek, type InsightRow } from "@/lib/insights/aggregate";
+import { groupThemes, groupStruggles, countBy, isoWeek, normalizeTreatments, type InsightRow } from "@/lib/insights/aggregate";
 
 const row = (over: Partial<InsightRow>): InsightRow => ({
   id: "c1", leadId: "l1", subreddit: "tressless", title: "t", url: "u",
-  createdAt: new Date("2025-01-06T12:00:00Z"), analyzed: true,
+  createdAt: new Date("2025-01-06T12:00:00Z"), postedAt: new Date("2025-01-06T12:00:00Z"), commentCount: 0, analyzed: true,
   problemTheme: "", struggleTags: [], unmetNeed: "", intent: "", hairConcern: "", treatment: "",
   ...over,
 });
@@ -52,5 +52,15 @@ describe("insights aggregation helpers", () => {
   it("isoWeek buckets dates into ISO weeks", () => {
     expect(isoWeek(new Date("2025-01-06T00:00:00Z"))).toBe("2025-W02");
     expect(isoWeek(new Date("2025-01-01T00:00:00Z"))).toBe("2025-W01");
+  });
+});
+
+describe("normalizeTreatments", () => {
+  it("buckets free-text treatments into canonical labels", () => {
+    expect(normalizeTreatments("Oral finasteride 1mg + oral minoxidil 2.5mg")).toEqual(["Finasteride / dutasteride", "Oral minoxidil"]);
+    expect(normalizeTreatments("topical Minoxidil (failed), now prescribed oral Minoxidil 1mg")).toEqual(["Oral minoxidil", "Topical minoxidil"]);
+    expect(normalizeTreatments("none (considering oral minoxidil)")).toEqual(["No treatment yet"]);
+    expect(normalizeTreatments("")).toEqual([]);
+    expect(normalizeTreatments("prayer")).toEqual(["Other / unspecified"]);
   });
 });
