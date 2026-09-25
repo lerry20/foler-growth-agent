@@ -3,14 +3,14 @@ import { env } from "@/lib/env";
 import { getKnowledgeBase, getSetting, SETTING_KEYS } from "@/lib/settings";
 import { applyGates } from "@/lib/gates";
 import { buildWaitlistUrl, recordSignup } from "@/lib/attribution";
-import { advanceStage } from "@/lib/pipeline";
+import { advanceStage, STAGE_ORDER } from "@/lib/pipeline";
 import { recencyScore, totalScore, categorize, normalizeBreakdown } from "@/lib/scoring";
 import { buildSystemPrompt, buildUserPrompt } from "./prompts";
 import { analyzeWithAnthropic } from "./anthropic";
 import { analyzeHeuristically } from "./heuristic";
 import { AnalysisSchema } from "./schema";
 import type { Analysis, AnalysisResult } from "./types";
-import type { LeadStage } from "@prisma/client";
+import type { EventType, LeadStage, PermissionState } from "@prisma/client";
 
 function trigrams(s: string): Set<string> {
   const words = s.toLowerCase().split(/\W+/).filter(Boolean);
@@ -26,7 +26,7 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
-function derivePermissionState(current: string, messages: { direction: string; content: string }[]): string {
+function derivePermissionState(current: PermissionState, messages: { direction: string; content: string }[]): PermissionState {
   if (current !== "NO_FOLER_MENTION") return current;
   const outbound = messages.filter((m) => m.direction === "OUTBOUND");
   if (outbound.some((m) => /fol[ēe]r/i.test(m.content))) return "FOLER_INTRODUCED";
@@ -57,8 +57,8 @@ export async function qualifyConversation(
 
   const permissionState = derivePermissionState(conversation.permissionState, conversation.messages);
   if (permissionState !== conversation.permissionState) {
-    await prisma.conversation.update({ where: { id: conversationId }, data: { permissionState: permissionState as never } });
-    conversation.permissionState = permissionState as never;
+    await prisma.conversation.update({ where: { id: conversationId }, data: { permissionState } });
+    conversation.permissionState = permissionState;
   }
 
   const post = conversation.messages.find((m) => m.isOriginalPost) ?? conversation.messages[0];
@@ -191,14 +191,14 @@ export async function qualifyConversation(
 
   // Stage / permission transitions
   let convoStage: LeadStage = advanceStage(conversation.stage, "QUALIFIED");
-  let permState = conversation.permissionState as string;
-  const events: { type: never; payload?: object }[] = [];
+  let permState: PermissionState = conversation.permissionState;
+  const events: { type: EventType; payload?: object }[] = [];
   if (conversation.stage === "DISCOVERED") {
-    events.push({ type: "LEAD_QUALIFIED" as never, payload: { category, total } });
+    events.push({ type: "LEAD_QUALIFIED", payload: { category, total } });
   }
   if (analysis.permission_signal === "PERMISSION_GRANTED" && permState !== "PERMISSION_GRANTED") {
     permState = "PERMISSION_GRANTED";
-    events.push({ type: "PERMISSION_GRANTED" as never });
+    events.push({ type: "PERMISSION_GRANTED" });
   }
   if (analysis.permission_signal === "INTEREST_EXPRESSED" && permState !== "INTEREST_DETECTED") {
     permState = "INTEREST_DETECTED";
@@ -207,17 +207,19 @@ export async function qualifyConversation(
     await recordSignup({ leadId: conversation.leadId, conversationId, source: "reddit-self-reported" });
     permState = "WAITLIST_SIGNUP";
     convoStage = "WAITLIST_SIGNUP";
-    events.push({ type: "WAITLIST_SIGNUP" as never });
+    events.push({ type: "WAITLIST_SIGNUP" });
   }
   if (analysis.foler_relevance >= 70 && permState === "NO_FOLER_MENTION") {
     permState = "FOLER_RELEVANCE_DETECTED";
-    events.push({ type: "FOLER_RELEVANCE_DETECTED" as never });
-    convoStage = advanceStage(convoStage, "FOLER_RELEVANT");
+    events.push({ type: "FOLER_RELEVANCE_DETECTED" });
+    if (STAGE_ORDER.indexOf(conversation.stage) >= STAGE_ORDER.indexOf("HELPING")) {
+      convoStage = advanceStage(convoStage, "FOLER_RELEVANT");
+    }
   }
 
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { stage: convoStage, permissionState: permState as never },
+    data: { stage: convoStage, permissionState: permState },
   });
   for (const e of events) {
     await prisma.event.create({

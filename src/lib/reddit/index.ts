@@ -11,7 +11,13 @@ export const providerLabel: Record<RedditProviderName, string> = {
   official_api: "Official Reddit API",
 };
 
+let providerOverride: RedditProvider | null = null;
+export function setProviderForTests(p: RedditProvider | null): void {
+  providerOverride = p;
+}
+
 export async function getRedditProvider(): Promise<RedditProvider> {
+  if (providerOverride) return providerOverride;
   const setting = await getSetting(SETTING_KEYS.redditProvider, "");
   const name = (setting || env.REDDIT_PROVIDER || "public_web") as RedditProviderName;
   switch (name) {

@@ -22,6 +22,8 @@ const EnvSchema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-4-5"),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   TELEGRAM_CHAT_ID: z.string().default(""),
+  TELEGRAM_MODE: z.enum(["polling", "webhook"]).default("polling"),
+  TELEGRAM_WEBHOOK_SECRET: z.string().default(""),
   REDDIT_PROVIDER: z.enum(["mock", "public_web", "official_api"]).default("public_web"),
   REDDIT_USER_AGENT: z.string().default("web:foler-growth-agent:v0.1 (by /u/<your_username>)"),
   REDDIT_OUR_USERNAME: z.string().default(""),
@@ -31,6 +33,7 @@ const EnvSchema = z.object({
   REDDIT_PASSWORD: z.string().default(""),
   APP_BASE_URL: z.string().default("http://localhost:3000"),
   ATTRIBUTION_WEBHOOK_SECRET: z.string().default(""),
+  SEED_MOCK: z.string().default(""),
 });
 
 export const env = EnvSchema.parse(process.env);

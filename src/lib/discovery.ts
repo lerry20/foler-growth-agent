@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { ingestConversation } from "@/lib/ingest";
 import { qualifyConversation } from "@/lib/ai/analyze";
 import { getRedditProvider, RedditProviderError } from "@/lib/reddit";
+import { pauseOutbound } from "@/lib/health";
+import { generateActionsForCandidates } from "@/lib/actions";
 import { setSetting, getSetting, SETTING_KEYS } from "@/lib/settings";
 import type { RedditSource } from "@prisma/client";
 
@@ -40,28 +42,7 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
         });
       } catch (err) {
         if (err instanceof RedditProviderError && err.kind === "RATE_LIMITED") {
-          const until = new Date(Date.now() + (err.retryAfterSeconds ?? 60) * 1000);
-          await prisma.accountHealth.upsert({
-            where: { id: "default" },
-            update: {
-              rateLimitHits: { increment: 1 },
-              lastRateLimitAt: new Date(),
-              outboundPaused: true,
-              pausedReason: `RATE_LIMITED during discovery: ${err.message}`,
-              pausedUntil: until,
-            },
-            create: {
-              id: "default",
-              rateLimitHits: 1,
-              lastRateLimitAt: new Date(),
-              outboundPaused: true,
-              pausedReason: `RATE_LIMITED during discovery: ${err.message}`,
-              pausedUntil: until,
-            },
-          });
-          await prisma.event.create({
-            data: { type: "OUTBOUND_PAUSED", payload: { reason: err.message, until } },
-          });
+          await pauseOutbound(`RATE_LIMITED during discovery: ${err.message}`, err.retryAfterSeconds ?? 60);
           result.errors.push(`rate limited: ${err.message}`);
           stopped = true;
           break;
@@ -90,19 +71,7 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
           }
         } catch (err) {
           if (err instanceof RedditProviderError && err.kind === "RATE_LIMITED") {
-            const until = new Date(Date.now() + (err.retryAfterSeconds ?? 60) * 1000);
-            await prisma.accountHealth.upsert({
-              where: { id: "default" },
-              update: {
-                rateLimitHits: { increment: 1 },
-                lastRateLimitAt: new Date(),
-                outboundPaused: true,
-                pausedReason: `RATE_LIMITED during discovery: ${err.message}`,
-                pausedUntil: until,
-              },
-              create: { id: "default", rateLimitHits: 1, outboundPaused: true, pausedReason: err.message, pausedUntil: until, lastRateLimitAt: new Date() },
-            });
-            await prisma.event.create({ data: { type: "OUTBOUND_PAUSED", payload: { reason: err.message, until } } });
+            await pauseOutbound(`RATE_LIMITED during discovery: ${err.message}`, err.retryAfterSeconds ?? 60);
             result.errors.push(`rate limited: ${err.message}`);
             stopped = true;
             break;
@@ -115,6 +84,10 @@ export async function runDiscovery(opts?: { categories?: string[]; limitPerTerm?
 
   const prev = Number(await getSetting(SETTING_KEYS.discoveryPostsScanned, "0")) || 0;
   await setSetting(SETTING_KEYS.discoveryPostsScanned, String(prev + result.scanned));
+
+  if (result.newConversations > 0) {
+    await generateActionsForCandidates();
+  }
 
   return result;
 }

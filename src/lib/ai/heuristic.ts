@@ -65,7 +65,7 @@ export function analyzeHeuristically(ctx: HeuristicContext): Analysis {
   )
     permission_signal = "INTEREST_EXPRESSED";
   else if (
-    ctx.permissionState === "PERMISSION_REQUESTED" &&
+    (ctx.permissionState === "PERMISSION_REQUESTED" || ctx.permissionState === "PERMISSION_GRANTED") &&
     (/^(sure|yes|yeah|ok|okay|absolutely|what|tell me|go ahead|i'?d)/.test(li) ||
       /(what are you (working|building)|tell me more|sure)/.test(li))
   )

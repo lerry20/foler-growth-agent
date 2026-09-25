@@ -120,7 +120,7 @@ export async function outboundPreflight(
     const contacted = await prisma.message.findFirst({
       where: { conversationId: { in: siblingIds }, direction: "OUTBOUND", isOriginalPost: false },
     });
-    if (contacted) reasons.push("Lead already contacted via another conversation on the same post");
+    if (contacted) reasons.push("Lead already contacted in another conversation");
   }
 
   if (actionType === "INTRODUCE_FOLER") {
