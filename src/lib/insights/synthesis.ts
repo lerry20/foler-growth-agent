@@ -25,7 +25,10 @@ export async function generateSynthesis(): Promise<string> {
       }],
     }),
   });
-  if (!res.ok) throw new Error(`Anthropic API ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(`Anthropic API ${res.status}: ${body?.error?.message ?? res.statusText}`);
+  }
   const j = (await res.json()) as { content?: { type: string; text?: string }[] };
   const md = (j.content ?? []).map((c) => c.text ?? "").join("\n").trim();
   await setSetting("insights.synthesis", md);

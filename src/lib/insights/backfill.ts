@@ -4,6 +4,7 @@ import { analyzeWithAnthropic } from "@/lib/ai/anthropic";
 import { struggleRulesText } from "./taxonomy";
 import { validateStruggles, type StruggleEvidence } from "./evidence";
 import { detectStruggles } from "./heuristicStruggles";
+import { verifyStruggles } from "./verify";
 
 const SYSTEM = `You classify Reddit posts about hair problems into a fixed taxonomy. Return ONLY a JSON object:
 {"problem_theme": string /* 3-7 words, lowercase, canonical class of problem */,
@@ -32,7 +33,7 @@ export async function backfillInsights(opts?: { limit?: number }): Promise<numbe
           problem_theme?: string; struggle_evidence?: { tag?: unknown; quote?: unknown }[]; unmet_need?: string;
         };
         theme = String(raw.problem_theme ?? "").trim().toLowerCase();
-        evidence = validateStruggles(raw.struggle_evidence, postText).evidence;
+        evidence = (await verifyStruggles(validateStruggles(raw.struggle_evidence, postText).evidence)).kept;
         unmet = String(raw.unmet_need ?? "");
       } catch {
         evidence = detectStruggles(postText);

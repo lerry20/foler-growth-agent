@@ -1,5 +1,5 @@
 import type { StruggleEvidence } from "./evidence";
-import { MAX_STRUGGLE_TAGS } from "./evidence";
+import { MAX_STRUGGLE_TAGS, quoteDenies } from "./evidence";
 import type { StruggleTag } from "./taxonomy";
 
 /**
@@ -10,7 +10,7 @@ import type { StruggleTag } from "./taxonomy";
 const RULES: [StruggleTag, RegExp][] = [
   [
     "UNCERTAINTY_IF_WORKING",
-    /(can'?t|cannot|hard to|unable to|impossible to|difficult to|no idea|not sure|unsure|don'?t know|do not know|wondering|no way to)\b[^.!?\n]{0,60}\b(if|whether)\b[^.!?\n]{0,60}\b(work(s|ing|ed)?|help(s|ing|ed)?|doing anything|(any|an) effect|effective|made (a|any) difference|improv\w*|regrow\w*|kicked in)\b|\b(no|zero|not seeing|haven'?t (seen|noticed)|not noticed?|not seen)\b[^.!?\n]{0,25}\b(visible |noticeable |real |any )?(results?|improvement|difference|progress|regrowth|change)\b[^.!?\n]{0,40}\b(month|year|week)s?\b|\b(month|year|week)s?\b[^.!?\n]{0,40}\b(no|zero|not seeing|haven'?t (seen|noticed)|not noticed?|not seen)\b[^.!?\n]{0,25}\b(visible |noticeable |real |any )?(results?|improvement|difference|progress|regrowth|change)\b|\bis (it|this|fin|min|minoxidil|finasteride|dutasteride|the (treatment|foam|oral)) (even |actually |really )?working\b/i,
+    /(can'?t|cannot|hard to|unable to|impossible to|difficult to|no idea|not sure|unsure|don'?t know|do not know|wondering|no way to)\b[^.!?\n]{0,60}\b(if|whether)\b[^.!?\n]{0,60}\b(work(s|ing|ed)?|help(s|ing|ed)?|doing anything|(any|an) effect|effective|made (a|any) difference|improv\w*|regrow\w*|growth|growing|new hairs?|kicked in)\b|\b(no|zero|not seeing|haven'?t (seen|noticed)|not noticed?|not seen)\b[^.!?\n]{0,25}\b(visible |noticeable |real |any )?(results?|improvement|difference|progress|regrowth|change)\b[^.!?\n]{0,40}\b(month|year|week)s?\b|\b(month|year|week)s?\b[^.!?\n]{0,40}\b(no|zero|not seeing|haven'?t (seen|noticed)|not noticed?|not seen)\b[^.!?\n]{0,25}\b(visible |noticeable |real |any )?(results?|improvement|difference|progress|regrowth|change)\b|\bis (it|this|fin|min|minoxidil|finasteride|dutasteride|the (treatment|foam|oral)) (even |actually |really )?working\b/i,
   ],
   [
     "MEASUREMENT_TRACKING",
@@ -71,7 +71,9 @@ export function detectStruggles(text: string): StruggleEvidence[] {
   for (const [tag, re] of RULES) {
     const m = re.exec(text);
     if (!m || m.index === undefined) continue;
-    out.push({ tag, quote: sentenceAround(text, m.index, m[0].length) });
+    const quote = sentenceAround(text, m.index, m[0].length);
+    if (quoteDenies(tag, quote)) continue;
+    out.push({ tag, quote });
     if (out.length >= MAX_STRUGGLE_TAGS) break;
   }
   return out;
