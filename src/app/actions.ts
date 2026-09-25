@@ -33,43 +33,51 @@ export async function refreshAllAction() {
 export async function approveActionForm(actionId: string, finalResponse?: string) {
   const r = await approveAction(actionId, { by: "dashboard", finalResponse });
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
   return r;
 }
 
 export async function rejectActionForm(actionId: string) {
   await rejectAction(actionId, { by: "dashboard" });
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
 }
 
 export async function snoozeActionForm(actionId: string, hours = 24) {
   await snoozeAction(actionId, hours);
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
 }
 
 export async function markPostedForm(actionId: string) {
   await markPosted(actionId, { by: "dashboard" });
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
 }
 
 export async function generateActionForm(conversationId: string) {
   const a = await generateAction(conversationId);
   if (!a) {
     revalidatePath(`/conversations/${conversationId}`);
+  revalidatePath("/outreach");
     return "No action recommended";
   }
   await requestApproval(a.id);
   revalidatePath(`/conversations/${conversationId}`);
+  revalidatePath("/outreach");
   return "Action created — sent for approval";
 }
 
 export async function reanalyzeForm(conversationId: string) {
   await qualifyConversation(conversationId, { force: true });
   revalidatePath(`/conversations/${conversationId}`);
+  revalidatePath("/outreach");
 }
 
 export async function refreshConversationForm(conversationId: string) {
   const r = await refreshConversation(conversationId);
   revalidatePath(`/conversations/${conversationId}`);
+  revalidatePath("/outreach");
   return r;
 }
 
@@ -79,6 +87,7 @@ export async function importReplyForm(conversationId: string, formData: FormData
   if (!author || !content) return { ok: false };
   await importReplyManually(conversationId, { author, content });
   revalidatePath(`/conversations/${conversationId}`);
+  revalidatePath("/outreach");
   return { ok: true };
 }
 
@@ -117,6 +126,7 @@ export async function resumeOutboundAction() {
 export async function importRedditUrlForm(url: string) {
   const r = await importConversationFromUrl(url);
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
   return r;
 }
 
@@ -130,6 +140,7 @@ export async function pastePostForm(formData: FormData) {
     createdAt: new Date(String(formData.get("createdAt") ?? Date.now())),
   });
   revalidatePath("/conversations");
+  revalidatePath("/outreach");
   return { conversationId: r.conversationId };
 }
 
