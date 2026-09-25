@@ -23,7 +23,7 @@ function heuristicTags(text: string): string[] {
 
 export async function backfillInsights(opts?: { limit?: number }): Promise<number> {
   const conversations = await prisma.conversation.findMany({
-    where: { problemTheme: "", lastAnalysis: { not: {} }, lead: { isMock: false }, source: { not: "MOCK" } },
+    where: { problemTheme: "", lastAnalyzedAt: { not: null }, lead: { isMock: false }, source: { not: "MOCK" } },
     include: { messages: { where: { isOriginalPost: true }, take: 1 } },
     orderBy: { createdAt: "desc" },
     take: opts?.limit ?? 20,
