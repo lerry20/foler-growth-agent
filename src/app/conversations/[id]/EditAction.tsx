@@ -19,7 +19,7 @@ export function EditApprove({ actionId, initial }: { actionId: string; initial: 
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={4}
-        className="w-full rounded border border-zinc-300 p-2 text-[12px]"
+        className="w-full rounded border border-zinc-300 p-2 text-[12px] break-words [overflow-wrap:anywhere]"
       />
       <div className="flex items-center gap-2">
         <button

@@ -24,8 +24,11 @@ async function call<T = TelegramResponse>(method: string, body: Record<string, u
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    return (await res.json()) as T;
-  } catch {
+    const json = (await res.json()) as T & { ok?: boolean; description?: string };
+    if (!json.ok) console.error(`Telegram ${method} failed: ${json.description ?? res.status}`);
+    return json;
+  } catch (err) {
+    console.error(`Telegram ${method} error:`, err instanceof Error ? err.message : err);
     return null;
   }
 }

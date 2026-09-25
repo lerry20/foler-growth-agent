@@ -48,6 +48,52 @@ describe("applyGates", () => {
     expect(blocked.join(" ")).toContain("Help first");
   });
 
+  it("PERMISSION_GRANTED signal ignored at NO_FOLER_MENTION with no outbound", () => {
+    const { analysis, blocked } = applyGates(
+      baseAnalysis({
+        permission_signal: "PERMISSION_GRANTED",
+        recommended_action: "INTRODUCE_FOLER",
+        suggested_response: "Sure — we're building FOLĒR, focused on tracking changes.",
+      }),
+      { subreddit: "tressless", permissionState: "NO_FOLER_MENTION", waitlistUrl: "https://x.co", hasOutbound: false },
+    );
+    expect(analysis.permission_signal).toBe("NONE");
+    expect(analysis.should_mention_foler).toBe(false);
+    expect(analysis.recommended_action).toBe("HELP");
+    expect(blocked.join(" ")).toContain("permission was never requested");
+  });
+
+  it("PERMISSION_GRANTED signal honored at PERMISSION_REQUESTED", () => {
+    const { analysis } = applyGates(
+      baseAnalysis({ permission_signal: "PERMISSION_GRANTED" }),
+      { subreddit: "tressless", permissionState: "PERMISSION_REQUESTED", waitlistUrl: "https://x.co", hasOutbound: true },
+    );
+    expect(analysis.permission_signal).toBe("PERMISSION_GRANTED");
+    expect(analysis.should_mention_foler).toBe(true);
+  });
+
+  it("empty waitlist sentence with lone dash gets stripped to empty when no outbound", () => {
+    const { analysis, blocked } = applyGates(
+      baseAnalysis({
+        recommended_action: "WAITLIST_INVITE",
+        permission_signal: "INTEREST_EXPRESSED",
+        suggested_response: "We're building a way to track this. Join the early waitlist here: —",
+      }),
+      { subreddit: "tressless", permissionState: "FOLER_INTRODUCED", waitlistUrl: "", hasOutbound: false },
+    );
+    expect(analysis.suggested_response).toBe("");
+    expect(blocked.join(" ")).toContain("Response removed by gates");
+  });
+
+  it("INTEREST_EXPRESSED ignored at PERMISSION_GRANTED (not introduced)", () => {
+    const { analysis, blocked } = applyGates(
+      baseAnalysis({ permission_signal: "INTEREST_EXPRESSED", recommended_action: "WAITLIST_INVITE" }),
+      { subreddit: "tressless", permissionState: "PERMISSION_GRANTED", waitlistUrl: "https://x.co", hasOutbound: true },
+    );
+    expect(analysis.permission_signal).toBe("NONE");
+    expect(blocked.join(" ")).toContain("never introduced");
+  });
+
   it("downgrades INTRODUCE_FOLER/WAITLIST_INVITE when community disallows intro", () => {
     const { analysis } = applyGates(baseAnalysis({ recommended_action: "WAITLIST_INVITE", permission_signal: "INTEREST_EXPRESSED" }), {
       subreddit: "tressless",

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getKnowledgeBase, getSetting, SETTING_KEYS } from "@/lib/settings";
-import { applyGates } from "@/lib/gates";
+import { applyGates, effectivePermissionSignal } from "@/lib/gates";
 import { buildWaitlistUrl, recordSignup } from "@/lib/attribution";
 import { advanceStage, STAGE_ORDER } from "@/lib/pipeline";
 import { recencyScore, totalScore, categorize, normalizeBreakdown } from "@/lib/scoring";
@@ -197,11 +197,12 @@ export async function qualifyConversation(
   if (conversation.stage === "DISCOVERED") {
     events.push({ type: "LEAD_QUALIFIED", payload: { category, total } });
   }
-  if (analysis.permission_signal === "PERMISSION_GRANTED" && permState !== "PERMISSION_GRANTED") {
+  const effectiveSignal = effectivePermissionSignal(analysis.permission_signal, permState).signal;
+  if (effectiveSignal === "PERMISSION_GRANTED" && permState !== "PERMISSION_GRANTED") {
     permState = "PERMISSION_GRANTED";
     events.push({ type: "PERMISSION_GRANTED" });
   }
-  if (analysis.permission_signal === "INTEREST_EXPRESSED" && permState !== "INTEREST_DETECTED") {
+  if (effectiveSignal === "INTEREST_EXPRESSED" && permState !== "INTEREST_DETECTED") {
     permState = "INTEREST_DETECTED";
   }
   if (analysis.permission_signal === "ALREADY_SIGNED_UP") {
