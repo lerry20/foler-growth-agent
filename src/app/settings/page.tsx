@@ -2,12 +2,11 @@ import { prisma } from "@/lib/db";
 import { getKnowledgeBase, getSetting, SETTING_KEYS } from "@/lib/settings";
 import { env } from "@/lib/env";
 import { getRedditProvider, providerLabel } from "@/lib/reddit";
-import { isTelegramConfigured } from "@/lib/telegram/client";
 import { Card } from "@/components/Funnel";
 import { ActionButton } from "@/components/buttons";
 import {
   saveSetting, saveSearchCategory, saveCommunity, addCommunity,
-  resumeOutboundAction, importRedditUrlForm, pastePostForm, sendTestTelegram, runCycleNowAction,
+  resumeOutboundAction, importRedditUrlForm, pastePostForm, runCycleNowAction,
 } from "../actions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -31,7 +30,6 @@ export default async function SettingsPage() {
       getSetting(SETTING_KEYS.waitlistUrl, ""),
       getSetting(SETTING_KEYS.redditProvider, env.REDDIT_PROVIDER),
     ]);
-  const lastTelegramEvent = await prisma.event.findFirst({ orderBy: { createdAt: "desc" } });
   const [lastRunAt, lastResultRaw] = await Promise.all([
     getSetting("scheduler.lastRunAt", ""),
     getSetting("scheduler.lastResult", ""),
@@ -220,13 +218,6 @@ export default async function SettingsPage() {
               </>
             )}
             <div className="pt-2"><ActionButton label="Run cycle now" action={runCycleNowAction} /></div>
-          </div>
-        </Card>
-        <Card title="Telegram" hint="Approval cards on your phone: Approve → copy → paste → I posted it.">
-          <div className="space-y-1 text-[12px]">
-            <div>{isTelegramConfigured() && env.TELEGRAM_CHAT_ID ? <span className="font-medium text-emerald-700">Connected</span> : <span className="font-medium text-red-700">Not connected</span>} · {env.TELEGRAM_MODE === "webhook" ? "instant (webhook)" : "polling"}</div>
-            <div>Last card sent: {lastTelegramEvent?.createdAt.toISOString().slice(0, 16).replace("T", " ") ?? "—"}</div>
-            <div className="pt-2"><ActionButton label="Send test message" action={sendTestTelegram} /></div>
           </div>
         </Card>
       </div>

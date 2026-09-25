@@ -9,8 +9,6 @@ import { qualifyConversation } from "@/lib/ai/analyze";
 import { setSetting } from "@/lib/settings";
 import { resumeOutbound } from "@/lib/health";
 import { importConversationFromText, importConversationFromUrl } from "@/lib/reddit/manualImport";
-import { isTelegramConfigured, sendMessage } from "@/lib/telegram/client";
-import { env } from "@/lib/env";
 
 const REDDIT_BLOCKED = /403|429|blocked|rate limited|forbidden/i;
 const REDDIT_BLOCKED_MSG = "Reddit refuses requests from this server — this runs from the local agent every 30 min instead.";
@@ -187,11 +185,4 @@ export async function runCycleNowAction() {
     ? REDDIT_BLOCKED_MSG
     : `Done in ${Math.round(r.durationMs / 1000)}s — ${r.discovery?.newConversations ?? 0} new people, ${r.actionsGenerated} replies drafted, ${r.monitoring?.refreshed ?? 0} threads checked.`;
   return { ...r, message };
-}
-
-export async function sendTestTelegram() {
-  if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return { ok: false, message: "Telegram is not configured on this server." };
-  const res = await sendMessage(env.TELEGRAM_CHAT_ID, "FOLĒR Pulse test message ✅");
-  const ok = Boolean(res?.ok);
-  return { ok, message: ok ? "Sent — check your Telegram." : "Telegram rejected the message." };
 }
