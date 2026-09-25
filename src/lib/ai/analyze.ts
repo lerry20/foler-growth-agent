@@ -9,6 +9,7 @@ import { buildSystemPrompt, buildUserPrompt } from "./prompts";
 import { analyzeWithAnthropic } from "./anthropic";
 import { analyzeHeuristically } from "./heuristic";
 import { AnalysisSchema } from "./schema";
+import { validateStruggles } from "@/lib/insights/evidence";
 import type { Analysis, AnalysisResult } from "./types";
 import type { EventType, LeadStage, PermissionState } from "@prisma/client";
 
@@ -128,6 +129,15 @@ export async function qualifyConversation(
     provider = "heuristic";
   }
 
+  // A struggle tag only counts when the person's own words back it up.
+  const theirs = conversation.messages.filter(
+    (m) => m.direction === "INBOUND" && (m.isOriginalPost || m.author.toLowerCase() === conversation.lead.redditUsername.toLowerCase()),
+  );
+  const ownWords = [conversation.title, ...theirs.map((m) => m.content)].join("\n");
+  const struggles = validateStruggles(analysis.struggle_evidence, ownWords);
+  analysis.struggle_tags = struggles.tags;
+  analysis.struggle_evidence = struggles.evidence;
+
   const breakdown = normalizeBreakdown({
     problemRelevance: analysis.scores.problem_relevance,
     measurementIntent: analysis.scores.measurement_intent,
@@ -191,6 +201,7 @@ export async function qualifyConversation(
       analysisProvider: provider,
       problemTheme: analysis.problem_theme,
       struggleTags: analysis.struggle_tags,
+      struggleEvidence: analysis.struggle_evidence,
       unmetNeed: analysis.unmet_need,
     },
   });

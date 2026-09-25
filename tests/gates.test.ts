@@ -14,6 +14,7 @@ const baseAnalysis = (over: Partial<Analysis> = {}): Analysis => ({
   treatment_duration: "",
   problem_theme: "",
   struggle_tags: [],
+  struggle_evidence: [],
   unmet_need: "",
   intent: "OTHER",
   foler_relevance: 50,

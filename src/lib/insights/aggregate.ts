@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { STRUGGLE_TAGS, STRUGGLE_LABELS, type StruggleTag } from "./taxonomy";
+import type { StruggleEvidence } from "./evidence";
+
+export interface SourceExample {
+  title: string;
+  url: string;
+  subreddit: string;
+  /** The person's verbatim words that earned this tag; empty for legacy rows classified before evidence was required. */
+  quote: string;
+  provider: string;
+}
 
 export interface InsightRow {
   id: string;
@@ -14,6 +24,8 @@ export interface InsightRow {
   analyzed: boolean;
   problemTheme: string;
   struggleTags: string[];
+  struggleEvidence: StruggleEvidence[];
+  provider: string;
   unmetNeed: string;
   intent: string;
   hairConcern: string;
@@ -64,7 +76,7 @@ export interface ProblemCluster {
   share: number;
   communities: { key: string; count: number }[];
   themes: { theme: string; count: number }[];
-  examples: { title: string; url: string; subreddit: string }[];
+  examples: SourceExample[];
 }
 
 export function groupProblems(rows: InsightRow[]): ProblemCluster[] {
@@ -85,7 +97,13 @@ export function groupProblems(rows: InsightRow[]): ProblemCluster[] {
       share: Math.round((hits.length / analyzed) * 1000) / 10,
       communities: countBy(hits, (r) => r.subreddit),
       themes: [...themeMap.entries()].map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 5),
-      examples: hits.slice(0, 3).map((r) => ({ title: r.title, url: r.url, subreddit: r.subreddit })),
+      examples: hits.slice(0, 12).map((r) => ({
+        title: r.title,
+        url: r.url,
+        subreddit: r.subreddit,
+        quote: r.struggleEvidence.find((e) => e.tag === tag)?.quote ?? "",
+        provider: r.provider,
+      })),
     });
   }
   return out.sort((a, b) => b.count - a.count);
@@ -115,6 +133,13 @@ export function countTreatments(rows: InsightRow[]): { key: string; count: numbe
   const m = new Map<string, number>();
   for (const r of rows) for (const k of normalizeTreatments(r.treatment)) m.set(k, (m.get(k) ?? 0) + 1);
   return [...m.entries()].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
+}
+
+export function parseEvidence(raw: unknown): StruggleEvidence[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is { tag: string; quote: string } => !!e && typeof e === "object" && typeof (e as { tag?: unknown }).tag === "string")
+    .map((e) => ({ tag: e.tag as StruggleTag, quote: String(e.quote ?? "") }));
 }
 
 export function countBy(rows: InsightRow[], key: (r: InsightRow) => string): { key: string; count: number }[] {
@@ -165,6 +190,8 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     analyzed: c.lastAnalyzedAt !== null,
     problemTheme: c.problemTheme,
     struggleTags: c.struggleTags,
+    struggleEvidence: parseEvidence(c.struggleEvidence),
+    provider: c.analysisProvider ?? "",
     unmetNeed: c.unmetNeed,
     intent: c.lead.intent ?? "",
     hairConcern: c.lead.hairConcern ?? "",
