@@ -3,21 +3,46 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f3ee;
+  --foreground: #262827;
+  --main-pad: 12px;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@media (min-width: 768px) {
+  :root { --main-pad: 20px; }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+  font-feature-settings: "cv05" 1, "ss01" 1;
 }
+
+@layer base {
+  button, [role="button"], a.btn {
+    transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+  }
+  button:not(:disabled):active { transform: translateY(1px) scale(0.98); }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid #b9d6b9; outline-offset: 2px; border-radius: 6px; }
+  input, textarea, select { transition: border-color 120ms ease, box-shadow 120ms ease; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #979b95; box-shadow: 0 0 0 3px rgba(185, 214, 185, 0.45); }
+  summary { -webkit-tap-highlight-color: transparent; }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-zinc-200 bg-white;
+    box-shadow: 0 1px 2px rgba(38, 40, 39, 0.04), 0 8px 24px -16px rgba(38, 40, 39, 0.18);
+  }
+}
+
+@keyframes flash-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+.flash { animation: flash-in 160ms ease-out; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
 
 /* ============================================================
    Pulse (Insights) — FOLĒR website design language
@@ -31,8 +56,8 @@ body {
   --warn: #e3c3a0;
   --good: #b9d6b9;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  margin: -20px;
-  padding: 40px clamp(20px, 4vw, 64px) 96px;
+  margin: calc(-1 * var(--main-pad));
+  padding: 40px clamp(16px, 4vw, 64px) 96px;
   min-height: calc(100vh - 41px);
   color: rgba(255, 255, 255, 0.92);
   background:
@@ -237,4 +262,11 @@ body {
   position: absolute;
   left: -17px;
   color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 640px) {
+  .pulse { padding-top: 24px; padding-bottom: 72px; }
+  .pulse-card { padding: 20px; border-radius: 24px; }
+  .pulse-card[data-hue="hero"] { border-radius: 28px; }
+  .pulse-grid { gap: 14px; }
 }

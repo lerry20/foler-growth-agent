@@ -134,14 +134,14 @@ export default async function HomePage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {todos.map((t) => (
-            <section key={t.title} className={`rounded-lg border bg-white p-4 ${t.n ? "border-zinc-200" : "border-zinc-100 opacity-60"}`}>
+            <section key={t.title} className={`card p-4 ${t.n ? "" : "opacity-60"}`}>
               <div className="flex items-baseline justify-between">
                 <div>
                   <span className="text-2xl font-semibold tabular-nums">{t.n}</span>
                   <span className="ml-2 text-[13px] text-zinc-700">{t.title}</span>
                 </div>
                 {t.n > 0 && (
-                  <Link href={t.href} className="rounded-md bg-zinc-900 px-2.5 py-1 text-[12px] font-medium text-white hover:bg-zinc-700">
+                  <Link href={t.href} className="btn rounded-md bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-zinc-700">
                     {t.cta} →
                   </Link>
                 )}
@@ -163,7 +163,7 @@ export default async function HomePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-200 bg-white p-4 text-[12px] text-zinc-500 md:grid-cols-3">
+      <div className="card grid grid-cols-1 gap-4 p-4 text-[12px] text-zinc-500 md:grid-cols-3">
         <div className="space-y-1.5">
           <ActionButton label="Find new people" action={runDiscoveryAction} />
           <p>Search the monitored communities for new posts and read them. Runs by itself every 30 min.</p>

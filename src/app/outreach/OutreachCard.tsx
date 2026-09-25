@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
+import { CopyButton, Status } from "@/components/buttons";
+import { toast } from "@/components/toast";
 import {
   approveActionForm,
   rejectActionForm,
@@ -54,27 +56,36 @@ function ago(iso: string | null): string {
 
 export function OutreachCard({ item, column }: { item: OutreachItem; column: Column }) {
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(item.text);
-  const [copied, setCopied] = useState(false);
 
-  const run = (fn: () => Promise<unknown>, okMsg: string) =>
+  const run = (key: string, fn: () => Promise<unknown>, okMsg: string) => {
+    setBusy(key);
+    setMsg("");
     start(async () => {
       try {
         const r = await fn();
         const server = r && typeof r === "object" && "message" in r ? (r as { message?: string }).message : undefined;
         setMsg(server ?? okMsg);
+        toast(server ?? okMsg);
       } catch (e) {
-        setMsg(e instanceof Error ? e.message : String(e));
+        const err = `Error: ${e instanceof Error ? e.message : String(e)}`;
+        setMsg(err);
+        toast(err);
+      } finally {
+        setBusy(null);
       }
     });
+  };
 
-  const btn = "rounded-md bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-zinc-700 disabled:opacity-50";
-  const ghost = "rounded-md border border-zinc-300 px-2.5 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 disabled:opacity-50";
+  const btn = "inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-zinc-700 disabled:opacity-50";
+  const ghost = "inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-100 disabled:opacity-50";
+  const Spin = ({ k }: { k: string }) => (busy === k ? <Loader2 size={12} className="spin" /> : null);
 
   return (
-    <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-3">
+    <div className={`card space-y-2 p-3 transition-opacity ${pending ? "opacity-70" : ""}`} aria-busy={pending}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -109,12 +120,12 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
             <div className="rounded border border-zinc-100 bg-zinc-50 p-2 text-[12px] leading-relaxed text-zinc-700 [overflow-wrap:anywhere]">{text}</div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
-            <button disabled={pending || !item.actionId} className={btn} onClick={() => run(() => approveActionForm(item.actionId!, editing && text !== item.text ? text : undefined), "Approved → Ready to post")}>
-              {editing ? "Approve edited" : "Approve"}
+            <button disabled={pending || !item.actionId} className={btn} title="Approve — you still post it yourself" onClick={() => run("approve", () => approveActionForm(item.actionId!, editing && text !== item.text ? text : undefined), "Approved → Ready to post")}>
+              <Spin k="approve" />{editing ? "Approve edited" : "Approve"}
             </button>
             <button disabled={pending} className={ghost} onClick={() => setEditing((v) => !v)}>{editing ? "Cancel edit" : "Edit"}</button>
-            <button disabled={pending || !item.actionId} className={ghost} onClick={() => run(() => rejectActionForm(item.actionId!), "Rejected")}>Reject</button>
-            <button disabled={pending || !item.actionId} className={ghost} onClick={() => run(() => snoozeActionForm(item.actionId!), "Snoozed 24h")}>Snooze</button>
+            <button disabled={pending || !item.actionId} className={ghost} title="Drop this draft; nothing is posted" onClick={() => run("reject", () => rejectActionForm(item.actionId!), "Rejected")}><Spin k="reject" />Reject</button>
+            <button disabled={pending || !item.actionId} className={ghost} title="Hide for a day" onClick={() => run("snooze", () => snoozeActionForm(item.actionId!), "Snoozed 24h")}><Spin k="snooze" />Snooze 24h</button>
           </div>
         </>
       )}
@@ -124,17 +135,12 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
           <div className="text-[10px] uppercase tracking-wide text-zinc-400">Approved — paste from your Reddit account</div>
           <div className="rounded border border-emerald-100 bg-emerald-50 p-2 text-[12px] leading-relaxed text-zinc-700 [overflow-wrap:anywhere]">{item.text}</div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              className={ghost}
-              onClick={async () => { await navigator.clipboard.writeText(item.text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            >
-              {copied ? "Copied" : "1. Copy"}
-            </button>
-            <a href={item.redditUrl} target="_blank" rel="noreferrer" className={`${ghost} inline-flex items-center gap-1`}>
+            <CopyButton text={item.text} label="1. Copy" className={ghost} />
+            <a href={item.redditUrl} target="_blank" rel="noreferrer" className={ghost}>
               2. Open thread <ExternalLink size={11} />
             </a>
-            <button disabled={pending || !item.actionId} className={btn} onClick={() => run(() => markPostedForm(item.actionId!), "Posted → monitoring")}>
-              3. I posted it
+            <button disabled={pending || !item.actionId} className={btn} title="Tell the agent it is live so it watches for replies" onClick={() => run("posted", () => markPostedForm(item.actionId!), "Posted → monitoring")}>
+              <Spin k="posted" />3. I posted it
             </button>
           </div>
         </>
@@ -145,7 +151,7 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
           <div className="text-[10px] uppercase tracking-wide text-zinc-400">Your comment · posted {ago(item.postedAt)}</div>
           <div className="line-clamp-3 rounded border border-emerald-100 bg-emerald-50 p-2 text-[12px] text-zinc-700 [overflow-wrap:anywhere]">{item.text}</div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button disabled={pending} className={ghost} onClick={() => run(() => refreshConversationForm(item.conversationId), "Checked — no new reply yet")}>Check for replies</button>
+            <button disabled={pending} className={ghost} onClick={() => run("refresh", () => refreshConversationForm(item.conversationId), "Checked — no new reply yet")}><Spin k="refresh" />Check for replies</button>
             <Link href={`/conversations/${item.conversationId}`} className={ghost} title="Open the conversation; you can paste a reply by hand there if Reddit is blocked">Open</Link>
           </div>
         </>
@@ -158,13 +164,13 @@ export function OutreachCard({ item, column }: { item: OutreachItem; column: Col
           </div>
           <div className="line-clamp-4 rounded border border-sky-100 bg-sky-50 p-2 text-[12px] text-zinc-700 [overflow-wrap:anywhere]">{item.lastInboundText}</div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button disabled={pending} className={btn} onClick={() => run(() => generateActionForm(item.conversationId), "Follow-up drafted → Needs approval")}>Draft follow-up</button>
+            <button disabled={pending} className={btn} onClick={() => run("draft", () => generateActionForm(item.conversationId), "Follow-up drafted → Needs approval")}><Spin k="draft" />Draft follow-up</button>
             <Link href={`/conversations/${item.conversationId}`} className={ghost}>Open conversation</Link>
           </div>
         </>
       )}
 
-      {msg && <div className="text-[11px] text-zinc-500">{pending ? "…" : msg}</div>}
+      {msg && !pending && <Status text={msg} />}
     </div>
   );
 }

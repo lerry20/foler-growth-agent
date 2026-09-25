@@ -3,7 +3,7 @@ import { getKnowledgeBase, getSetting, SETTING_KEYS } from "@/lib/settings";
 import { env } from "@/lib/env";
 import { getRedditProvider, providerLabel } from "@/lib/reddit";
 import { Card } from "@/components/Funnel";
-import { ActionButton } from "@/components/buttons";
+import { ActionButton, ActionForm, SubmitButton } from "@/components/buttons";
 import {
   saveSetting, saveSearchCategory, saveCommunity, addCommunity,
   resumeOutboundAction, importRedditUrlForm, pastePostForm, runCycleNowAction,
@@ -13,8 +13,7 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const input = "w-full rounded border border-zinc-300 px-2 py-1 text-[12px]";
-const btn = "rounded bg-zinc-900 px-3 py-1 text-[12px] text-white";
+const input = "w-full rounded-md border border-zinc-300 bg-white px-2.5 py-1.5 text-[12px]";
 
 export default async function SettingsPage() {
   const [kb, categories, communities, health, provider, redditUser, campaign, useRedirect, waitlistUrl, providerSetting] =
@@ -53,21 +52,21 @@ export default async function SettingsPage() {
       <Card title="What we listen for" hint="One search term per line. The agent searches every enabled community for each term, every 30 min.">
         <div className="space-y-3">
           {categories.map((c) => (
-            <form key={c.id} action={async (fd: FormData) => { "use server"; await saveSearchCategory(c.id, String(fd.get("terms") ?? "").split("\n").map((t) => t.trim()).filter(Boolean), fd.get("enabled") === "on"); }} className="rounded border border-zinc-200 p-3">
+            <ActionForm key={c.id} action={async (fd: FormData) => { "use server"; await saveSearchCategory(c.id, String(fd.get("terms") ?? "").split("\n").map((t) => t.trim()).filter(Boolean), fd.get("enabled") === "on"); }} className="rounded-md border border-zinc-200 p-3">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-medium">{c.name}</span>
                 <label className="flex items-center gap-1 text-[12px] text-zinc-500"><input type="checkbox" name="enabled" defaultChecked={c.enabled} /> enabled</label>
               </div>
               <textarea name="terms" rows={3} defaultValue={c.terms.join("\n")} className={input} />
-              <button className={`${btn} mt-2`}>Save</button>
-            </form>
+              <div className="mt-2"><SubmitButton /></div>
+            </ActionForm>
           ))}
         </div>
       </Card>
 
       <Card title="Where we listen" hint="Communities the agent scans, and whether we are allowed to reply there and in what tone.">
         {communities.map((c) => (
-          <form key={c.id} action={async (fd: FormData) => { "use server"; await saveCommunity(c.id, {
+          <ActionForm key={c.id} action={async (fd: FormData) => { "use server"; await saveCommunity(c.id, {
             enabled: fd.get("enabled") === "on",
             tone: String(fd.get("tone") ?? ""),
             promotionSensitivity: String(fd.get("promotionSensitivity") ?? "MEDIUM"),
@@ -76,29 +75,29 @@ export default async function SettingsPage() {
             folerIntroAllowed: fd.get("folerIntroAllowed") === "on",
             notes: String(fd.get("notes") ?? ""),
             rulesUrl: String(fd.get("rulesUrl") ?? ""),
-          }); }} className="mb-3 rounded border border-zinc-200 p-3">
-            <div className="mb-2 flex items-center gap-3">
+          }); }} className="mb-3 rounded-md border border-zinc-200 p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-3">
               <span className="font-medium">r/{c.name}</span>
               <label className="flex items-center gap-1 text-[12px] text-zinc-500"><input type="checkbox" name="enabled" defaultChecked={c.enabled} /> enabled</label>
               <label className="flex items-center gap-1 text-[12px] text-zinc-500"><input type="checkbox" name="dmAllowed" defaultChecked={c.dmAllowed} /> DMs</label>
               <label className="flex items-center gap-1 text-[12px] text-zinc-500"><input type="checkbox" name="folerIntroAllowed" defaultChecked={c.folerIntroAllowed} /> FOLĒR intro</label>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <input name="tone" placeholder="tone" defaultValue={c.tone} className={input} />
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <input name="tone" placeholder="Tone, e.g. warm and practical" defaultValue={c.tone} className={input} />
               <select name="promotionSensitivity" defaultValue={c.promotionSensitivity} className={input}>
                 {["LOW", "MEDIUM", "HIGH"].map((s) => <option key={s}>{s}</option>)}
               </select>
-              <input name="minRelevanceScore" type="number" placeholder="min score" defaultValue={c.minRelevanceScore} className={input} />
-              <input name="rulesUrl" placeholder="rules url" defaultValue={c.rulesUrl} className={input} />
+              <input name="minRelevanceScore" type="number" placeholder="Min relevance score" defaultValue={c.minRelevanceScore} className={input} />
+              <input name="rulesUrl" placeholder="Link to community rules" defaultValue={c.rulesUrl} className={input} />
             </div>
-            <textarea name="notes" placeholder="notes" defaultValue={c.notes} rows={2} className={`${input} mt-2`} />
-            <button className={`${btn} mt-2`}>Save</button>
-          </form>
+            <textarea name="notes" placeholder="Notes for the drafter" defaultValue={c.notes} rows={2} className={`${input} mt-2`} />
+            <div className="mt-2"><SubmitButton /></div>
+          </ActionForm>
         ))}
-        <form action={async (fd: FormData) => { "use server"; await addCommunity(String(fd.get("name") ?? "").replace(/^r\//, "")); }} className="flex gap-2">
-          <input name="name" placeholder="add subreddit (no r/)" className={input} />
-          <button className={btn}>Add</button>
-        </form>
+        <ActionForm action={async (fd: FormData) => { "use server"; return addCommunity(String(fd.get("name") ?? "").replace(/^r\//, "").trim()); }} className="flex gap-2">
+          <input name="name" required pattern="(r/)?[A-Za-z0-9_]{2,21}" title="Subreddit name, e.g. tressless" placeholder="Add a subreddit, e.g. tressless" className={input} />
+          <SubmitButton>Add</SubmitButton>
+        </ActionForm>
       </Card>
 
       <Card title="What we may say about FOLĒR" hint="The only facts Claude may use when FOLĒR comes up. Anything under prohibited is stripped from drafts.">
@@ -109,35 +108,35 @@ export default async function SettingsPage() {
           [SETTING_KEYS.kbCurrentCapabilities, "Current capabilities", kb.currentCapabilities],
           [SETTING_KEYS.kbLimitations, "Limitations", kb.limitations],
         ] as const).map(([key, label, value]) => (
-          <form key={key} action={setField} className="mb-3">
+          <ActionForm key={key} action={setField} className="mb-3">
             <input type="hidden" name="key" value={key} />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">{label}</div>
             <textarea name="value" rows={3} defaultValue={value} className={input} />
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
         ))}
-        <div className="grid grid-cols-3 gap-3">
-          <form action={setField}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <ActionForm action={setField}>
             <input type="hidden" name="key" value={SETTING_KEYS.waitlistUrl} />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">Waitlist URL</div>
             <input name="value" defaultValue={waitlistUrl} className={input} />
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
-          <form action={setField}>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
+          <ActionForm action={setField}>
             <input type="hidden" name="key" value={SETTING_KEYS.attributionCampaign} />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">Campaign tag (added to the link)</div>
             <input name="value" defaultValue={campaign} className={input} />
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
-          <form action={setField}>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
+          <ActionForm action={setField}>
             <input type="hidden" name="key" value="attribution.useRedirect" />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">Count link clicks</div>
             <select name="value" defaultValue={useRedirect} className={input}>
               <option value="false">Off — link goes straight to the waitlist</option>
               <option value="true">On — link passes through Pulse first</option>
             </select>
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
         </div>
       </Card>
 
@@ -147,8 +146,8 @@ export default async function SettingsPage() {
           {[provider.capabilities.search && "search", provider.capabilities.readConversation && "read threads", provider.capabilities.monitorReplies && "watch for replies", provider.capabilities.createComment && "post comments"].filter(Boolean).join(", ")}
           {!provider.capabilities.createComment && "; posting is always done by you"}.
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <form action={setField}>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <ActionForm action={setField}>
             <input type="hidden" name="key" value={SETTING_KEYS.redditProvider} />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">How we read Reddit</div>
             <select name="value" defaultValue={providerSetting} className={input}>
@@ -156,34 +155,34 @@ export default async function SettingsPage() {
               <option value="official_api">Official API — needs Reddit app credentials</option>
               <option value="mock">Demo data — nothing real</option>
             </select>
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
-          <form action={setField}>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
+          <ActionForm action={setField}>
             <input type="hidden" name="key" value={SETTING_KEYS.redditOurUsername} />
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">Your Reddit username (the one you post from)</div>
             <input name="value" defaultValue={redditUser} className={input} />
-            <button className={`${btn} mt-1`}>Save</button>
-          </form>
+            <div className="mt-1"><SubmitButton /></div>
+          </ActionForm>
         </div>
       </Card>
 
       <Card title="Add a post yourself" hint="Saw a thread the agent missed? Paste its link and it gets read, analyzed and added to People like any other.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <form action={async (fd: FormData) => { "use server"; const r = await importRedditUrlForm(String(fd.get("url") ?? "")); redirect(`/conversations/${r.conversationId}`); }} className="rounded border border-zinc-200 p-3">
+          <form action={async (fd: FormData) => { "use server"; const r = await importRedditUrlForm(String(fd.get("url") ?? "")); redirect(`/conversations/${r.conversationId}`); }} className="rounded-md border border-zinc-200 p-3">
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">By link</div>
             <input name="url" required placeholder="https://www.reddit.com/r/…/comments/…" className={input} />
-            <button className={`${btn} mt-2`}>Read this thread</button>
+            <div className="mt-2"><SubmitButton>Read this thread</SubmitButton></div>
           </form>
-          <form action={async (fd: FormData) => { "use server"; const r = await pastePostForm(fd); redirect(`/conversations/${r.conversationId}`); }} className="rounded border border-zinc-200 p-3 space-y-1">
+          <form action={async (fd: FormData) => { "use server"; const r = await pastePostForm(fd); redirect(`/conversations/${r.conversationId}`); }} className="rounded-md border border-zinc-200 p-3 space-y-1">
             <div className="mb-1 text-[11px] uppercase tracking-wide text-zinc-400">By copy-paste (if Reddit blocks the server)</div>
-            <input name="url" placeholder="post url" required className={input} />
+            <input name="url" placeholder="Post URL" required className={input} />
             <div className="grid grid-cols-2 gap-1">
-              <input name="subreddit" placeholder="subreddit" required className={input} />
-              <input name="author" placeholder="author" required className={input} />
+              <input name="subreddit" placeholder="Subreddit" required className={input} />
+              <input name="author" placeholder="Author username" required className={input} />
             </div>
-            <input name="title" placeholder="title" required className={input} />
-            <textarea name="body" placeholder="post text" rows={2} className={input} />
-            <button className={btn}>Add post</button>
+            <input name="title" placeholder="Post title" required className={input} />
+            <textarea name="body" placeholder="Post text" rows={2} className={input} />
+            <SubmitButton>Add post</SubmitButton>
           </form>
         </div>
       </Card>

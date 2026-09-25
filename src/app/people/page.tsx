@@ -98,11 +98,11 @@ export default async function PeoplePage({ searchParams }: { searchParams: Recor
           <h1 className="text-lg font-semibold">People</h1>
           <p className="text-[13px] text-zinc-500">Everyone the agent found, one row per conversation. Ranked by how well we can help; click a row to see the thread and the drafted reply.</p>
         </div>
-        <form className="flex items-center gap-2">
+        <form className="flex w-full items-center gap-2 sm:w-auto" role="search">
           {filter !== "all" && <input type="hidden" name="status" value={filter} />}
           {sub && <input type="hidden" name="subreddit" value={sub} />}
           {showMock && <input type="hidden" name="mock" value="1" />}
-          <input name="q" defaultValue={q} placeholder="Search name, post or problem…" className="w-60 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[12px] outline-none focus:border-zinc-400" />
+          <input name="q" defaultValue={q} placeholder="Search name, post or problem…" type="search" className="w-full rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[12px] sm:w-60" />
           <Link href={qs({ mock: showMock ? undefined : "1" })} className={pill(showMock)}>{showMock ? "Hide demo data" : "Show demo data"}</Link>
         </form>
       </header>
@@ -126,36 +126,41 @@ export default async function PeoplePage({ searchParams }: { searchParams: Recor
 
       {filter !== "all" && <p className="text-[12px] text-zinc-500">{STATUS[filter].hint}</p>}
 
-      <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
-        <table className="w-full border-collapse text-[13px]">
+      <div className="card overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-[13px] sm:table-auto">
           <thead>
             <tr className="border-b border-zinc-200 text-left text-[11px] uppercase tracking-wide text-zinc-400">
               <th className="px-3 py-2 font-medium">Person &amp; what they struggle with</th>
-              <th className="px-3 py-2 font-medium">Community</th>
-              <th className="px-3 py-2 text-right font-medium">Score</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 text-right font-medium">Activity</th>
+              <th className="hidden px-3 py-2 font-medium lg:table-cell">Community</th>
+              <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Score</th>
+              <th className="w-28 px-3 py-2 font-medium sm:w-auto">Status</th>
+              <th className="hidden px-3 py-2 text-right font-medium md:table-cell">Activity</th>
             </tr>
           </thead>
           <tbody>
             {visible.map(({ c, status }) => (
-              <tr key={c.id} className="border-b border-zinc-100 hover:bg-zinc-50">
+              <tr key={c.id} className="group border-b border-zinc-100 transition-colors hover:bg-zinc-50">
                 <td className="max-w-[520px] px-3 py-2.5">
-                  <Link href={`/conversations/${c.id}`} className="block">
+                  <Link href={`/conversations/${c.id}`} className="block min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-900">u/{c.lead.redditUsername}</span>
+                      <span className="shrink-0 font-medium text-zinc-900 group-hover:underline">u/{c.lead.redditUsername}</span>
                       {c.lead.isMock && <span className="rounded bg-amber-100 px-1 text-[10px] text-amber-800">DEMO</span>}
                       <span className="truncate text-zinc-400">· {c.title}</span>
                     </div>
                     <div className="truncate text-[12px] text-zinc-500">{c.lead.problem || "Not analyzed yet"}</div>
+                    <div className="mt-0.5 flex gap-2 text-[11px] text-zinc-400 lg:hidden">
+                      <span>r/{c.subreddit}</span>
+                      <span className={`sm:hidden ${catClass[c.lead.category] ?? ""}`}>score {c.lead.leadScore}</span>
+                      <span className="md:hidden">{ago(c.lastActivityAt)}</span>
+                    </div>
                   </Link>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-zinc-600">r/{c.subreddit}</td>
-                <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums font-medium ${catClass[c.lead.category] ?? ""}`}>{c.lead.leadScore}</td>
-                <td className="whitespace-nowrap px-3 py-2.5">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS[status].cls}`} title={STATUS[status].hint}>{STATUS[status].label}</span>
+                <td className="hidden whitespace-nowrap px-3 py-2.5 text-zinc-600 lg:table-cell">r/{c.subreddit}</td>
+                <td className={`hidden whitespace-nowrap px-3 py-2.5 text-right tabular-nums font-medium sm:table-cell ${catClass[c.lead.category] ?? ""}`}>{c.lead.leadScore}</td>
+                <td className="px-3 py-2.5">
+                  <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS[status].cls}`} title={STATUS[status].hint}>{STATUS[status].label}</span>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-right text-[12px] text-zinc-400">{ago(c.lastActivityAt)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2.5 text-right text-[12px] text-zinc-400 md:table-cell">{ago(c.lastActivityAt)}</td>
               </tr>
             ))}
             {visible.length === 0 && (

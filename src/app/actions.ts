@@ -132,12 +132,14 @@ export async function saveCommunity(id: string, data: {
 }
 
 export async function addCommunity(name: string) {
+  if (!/^[A-Za-z0-9_]{2,21}$/.test(name)) return { message: "Error: enter a subreddit name like tressless" };
   await prisma.communityConfig.upsert({
     where: { name },
     update: {},
     create: { name, allowedActions: ["HELP", "ENGAGE", "FOLLOW_UP", "INTRODUCE_FOLER", "WAITLIST_INVITE"] },
   });
   revalidatePath("/settings");
+  return { message: `r/${name} added — the next discovery pass will scan it` };
 }
 
 export async function resumeOutboundAction() {
