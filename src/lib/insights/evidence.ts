@@ -42,6 +42,22 @@ export function quoteAppears(quote: string, text: string): boolean {
   return hit / qb.size >= 0.7;
 }
 
+const NEG = "(?:no|not|zero|never|none|didn'?t|did not|haven'?t|have not|hasn'?t|has not|without|nor|free of|thankfully|luckily|fortunately)";
+const DENIAL: Partial<Record<StruggleTag, RegExp[]>> = {
+  SIDE_EFFECTS: [
+    new RegExp(`\\b${NEG}\\b[^.?!]{0,40}\\bside[- ]?effects?\\b`, "i"),
+    /\bside[- ]?effects?\b[^.?!]{0,20}\b(none|at all|whatsoever|zero|free)\b/i,
+    new RegExp(`\\b${NEG}\\b[^.?!]{0,30}\\b(?:sides|sexual sides|issues with (?:libido|erections?))\\b`, "i"),
+  ],
+  COST: [/\b(?:can|could) afford\b(?![^.?!]{0,20}\bnot\b)/i, /\bcost (?:isn'?t|is not|wasn'?t) (?:an issue|a problem|a concern)\b/i],
+  EMOTIONAL_DISTRESS: [/\b(?:not|never) (?:too |that |really )?(?:worried|anxious|stressed|bothered|depressed)\b/i],
+};
+
+/** The quote says the opposite of the struggle ("no side effects", "thankfully none"). */
+export function quoteDenies(tag: StruggleTag, quote: string): boolean {
+  return (DENIAL[tag] ?? []).some((re) => re.test(quote));
+}
+
 /**
  * Keep only tags that are known and backed by a quote found in the thread.
  * Deduplicates, drops OTHER when a real tag survives, caps at MAX_STRUGGLE_TAGS.
@@ -63,6 +79,10 @@ export function validateStruggles(
     if (seen.has(tag)) continue;
     if (!quoteAppears(quote, threadText)) {
       dropped.push({ tag, quote, why: "quote not found in thread" });
+      continue;
+    }
+    if (quoteDenies(tag as StruggleTag, quote)) {
+      dropped.push({ tag, quote, why: "quote denies the problem" });
       continue;
     }
     seen.add(tag);

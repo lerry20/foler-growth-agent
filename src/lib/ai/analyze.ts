@@ -10,6 +10,7 @@ import { analyzeWithAnthropic } from "./anthropic";
 import { analyzeHeuristically } from "./heuristic";
 import { AnalysisSchema } from "./schema";
 import { validateStruggles } from "@/lib/insights/evidence";
+import { verifyStruggles } from "@/lib/insights/verify";
 import type { Analysis, AnalysisResult } from "./types";
 import type { EventType, LeadStage, PermissionState } from "@prisma/client";
 
@@ -135,8 +136,9 @@ export async function qualifyConversation(
   );
   const ownWords = [conversation.title, ...theirs.map((m) => m.content)].join("\n");
   const struggles = validateStruggles(analysis.struggle_evidence, ownWords);
-  analysis.struggle_tags = struggles.tags;
-  analysis.struggle_evidence = struggles.evidence;
+  const judged = await verifyStruggles(struggles.evidence);
+  analysis.struggle_tags = judged.kept.map((e) => e.tag);
+  analysis.struggle_evidence = judged.kept;
 
   const breakdown = normalizeBreakdown({
     problemRelevance: analysis.scores.problem_relevance,

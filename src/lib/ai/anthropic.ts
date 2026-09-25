@@ -1,6 +1,10 @@
 import { env } from "@/lib/env";
 
-export async function analyzeWithAnthropic(system: string, user: string): Promise<unknown> {
+export async function analyzeWithAnthropic(
+  system: string,
+  user: string,
+  opts?: { temperature?: number; maxTokens?: number },
+): Promise<unknown> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -10,13 +14,16 @@ export async function analyzeWithAnthropic(system: string, user: string): Promis
     },
     body: JSON.stringify({
       model: env.ANTHROPIC_MODEL,
-      max_tokens: 1200,
-      temperature: 0.4,
+      max_tokens: opts?.maxTokens ?? 1200,
+      temperature: opts?.temperature ?? 0.4,
       system,
       messages: [{ role: "user", content: user }],
     }),
   });
-  if (!res.ok) throw new Error(`Anthropic API ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(`Anthropic API ${res.status}: ${body?.error?.message ?? res.statusText}`);
+  }
   const j = (await res.json()) as { content?: { type: string; text?: string }[] };
   const text = (j.content ?? []).map((c) => c.text ?? "").join("\n");
   const m = text.match(/\{[\s\S]*\}/);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { quoteAppears, validateStruggles } from "@/lib/insights/evidence";
+import { quoteAppears, quoteDenies, validateStruggles } from "@/lib/insights/evidence";
 import { detectStruggles } from "@/lib/insights/heuristicStruggles";
 
 const POST = `Is my experience with finasteride normal?
@@ -54,6 +54,37 @@ describe("validateStruggles", () => {
   it("handles missing/garbage input", () => {
     expect(validateStruggles(undefined, POST).tags).toEqual([]);
     expect(validateStruggles([{}, { tag: 3, quote: null }], POST).tags).toEqual([]);
+  });
+
+  it("drops a tag whose quote denies the problem", () => {
+    const text =
+      "I'll also note i haven't noticed any side effects but i also haven't seen any improvement in hair. " +
+      "Thankfully, I didn't experience any noticeable side effects. " +
+      "17 months, and i had great results and no side effects at all. " +
+      "I had to stop fin due to side effects.";
+    const r = validateStruggles(
+      [
+        { tag: "SIDE_EFFECTS", quote: "i haven't noticed any side effects but i also haven't seen any improvement in hair" },
+        { tag: "SIDE_EFFECTS", quote: "Thankfully, I didn't experience any noticeable side effects" },
+        { tag: "SIDE_EFFECTS", quote: "i had great results and no side effects at all" },
+        { tag: "UNCERTAINTY_IF_WORKING", quote: "i also haven't seen any improvement in hair" },
+      ],
+      text,
+    );
+    expect(r.tags).toEqual(["UNCERTAINTY_IF_WORKING"]);
+    expect(r.dropped.filter((d) => d.why === "quote denies the problem")).toHaveLength(3);
+    expect(validateStruggles([{ tag: "SIDE_EFFECTS", quote: "I had to stop fin due to side effects" }], text).tags).toEqual(["SIDE_EFFECTS"]);
+  });
+});
+
+describe("quoteDenies", () => {
+  it("recognises negated side effects but not real ones", () => {
+    expect(quoteDenies("SIDE_EFFECTS", "no side effects so far")).toBe(true);
+    expect(quoteDenies("SIDE_EFFECTS", "zero sides after a year")).toBe(true);
+    expect(quoteDenies("SIDE_EFFECTS", "9 months on morr f, erectile dysfunction")).toBe(false);
+    expect(quoteDenies("SIDE_EFFECTS", "the side effects are killing my libido")).toBe(false);
+    expect(quoteDenies("COST", "I can afford it but is it worth it")).toBe(true);
+    expect(quoteDenies("COST", "I can't afford private derms")).toBe(false);
   });
 });
 
