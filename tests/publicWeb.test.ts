@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseAtomEntries, entryToPost, entryToComment, htmlToText, PublicWebProvider, threadUrls } from "@/lib/reddit/publicWeb";
+import { parseAtomEntries, entryToPost, entryToComment, htmlToText, PublicWebProvider, threadUrls, rateLimitDelaySec } from "@/lib/reddit/publicWeb";
 import { RedditProviderError } from "@/lib/reddit/types";
 
 const ATOM = `<?xml version="1.0" encoding="UTF-8"?>
@@ -88,5 +88,15 @@ describe("publicWeb error handling", () => {
       retryAfterSeconds: 1,
     });
     await expect(provider.searchPosts("x")).rejects.toBeInstanceOf(RedditProviderError);
+  });
+});
+
+describe("rateLimitDelaySec", () => {
+  it("prefers Retry-After, then x-ratelimit-reset (+2 s), else 60 s, capped at 120 s", () => {
+    expect(rateLimitDelaySec(new Headers({ "Retry-After": "7" }))).toBe(7);
+    expect(rateLimitDelaySec(new Headers({ "x-ratelimit-reset": "40" }))).toBe(42);
+    expect(rateLimitDelaySec(new Headers({ "Retry-After": "0", "x-ratelimit-reset": "3" }))).toBe(5);
+    expect(rateLimitDelaySec(new Headers())).toBe(60);
+    expect(rateLimitDelaySec(new Headers({ "Retry-After": "900" }))).toBe(120);
   });
 });
