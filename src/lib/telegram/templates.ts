@@ -68,5 +68,5 @@ export function decisionSuffixHtml(status: string, by: string): string {
 }
 
 export function chatIdHelpHtml(chatId: string | number): string {
-  return `Hi! This chat's ID is <code>${chatId}</code>. Set <code>TELEGRAM_CHAT_ID=${chatId}</code> in the FOLĒR Growth Agent .env to receive approval requests here.`;
+  return `Hi! This chat's ID is <code>${chatId}</code>. Set <code>TELEGRAM_CHAT_ID=${chatId}</code> in the FOLĒR Pulse .env to receive approval requests here.`;
 }

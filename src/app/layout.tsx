@@ -9,7 +9,7 @@ import { Home, Inbox, MessagesSquare, BarChart3, Lightbulb, Settings, Send } fro
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FOLĒR Growth Agent",
+  title: "FOLĒR Pulse",
   description: "Internal growth agent for FOLĒR",
 };
 
@@ -37,7 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="flex min-h-screen">
           <aside className="w-48 shrink-0 border-r border-zinc-200 bg-white px-3 py-4">
             <div className="px-2 pb-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              FOLĒR Growth
+              FOLĒR Pulse
             </div>
             <nav className="space-y-0.5">
               {NAV.map((n) => (

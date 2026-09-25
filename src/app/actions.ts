@@ -167,6 +167,6 @@ export async function runCycleNowAction() {
 
 export async function sendTestTelegram() {
   if (!isTelegramConfigured() || !env.TELEGRAM_CHAT_ID) return { ok: false };
-  const res = await sendMessage(env.TELEGRAM_CHAT_ID, "FOLĒR Growth Agent test message ✅");
+  const res = await sendMessage(env.TELEGRAM_CHAT_ID, "FOLĒR Pulse test message ✅");
   return { ok: Boolean(res?.ok) };
 }
