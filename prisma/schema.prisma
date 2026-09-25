@@ -164,6 +164,7 @@ model Conversation {
   analysisProvider String?
   problemTheme     String        @default("")
   struggleTags     String[]      @default([])
+  struggleEvidence Json          @default("[]")
   unmetNeed        String        @default("")
   snoozedUntil     DateTime?
   messages         Message[]

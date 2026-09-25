@@ -10,6 +10,9 @@ export const AnalysisSchema = z.object({
   treatment_duration: z.string().default(""),
   problem_theme: z.string().default(""),
   struggle_tags: z.array(z.string()).default([]),
+  struggle_evidence: z
+    .array(z.object({ tag: z.string().default(""), quote: z.string().default("") }))
+    .default([]),
   unmet_need: z.string().default(""),
   intent: z.enum(["MEASUREMENT", "UNCERTAINTY", "TREATMENT_JOURNEY", "HAIR_PROBLEM", "PRODUCT_INTENT", "OTHER"]),
   foler_relevance: clamp(0, 100),

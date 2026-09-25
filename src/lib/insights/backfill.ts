@@ -1,25 +1,17 @@
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { analyzeWithAnthropic } from "@/lib/ai/anthropic";
-import { STRUGGLE_TAGS, type StruggleTag } from "./taxonomy";
-
-const TAG_SET = new Set<string>(STRUGGLE_TAGS);
+import { struggleRulesText } from "./taxonomy";
+import { validateStruggles, type StruggleEvidence } from "./evidence";
+import { detectStruggles } from "./heuristicStruggles";
 
 const SYSTEM = `You classify Reddit posts about hair problems into a fixed taxonomy. Return ONLY a JSON object:
 {"problem_theme": string /* 3-7 words, lowercase, canonical class of problem */,
- "struggle_tags": string[] /* 1-3 tags, only from: ${STRUGGLE_TAGS.join(", ")} */,
- "unmet_need": string /* one sentence: what would help this person that they don't have today */}`;
+ "struggle_evidence": [{"tag": string, "quote": string}] /* 1-2 items normally, 3 at most. quote = 5-25 VERBATIM words from the post proving the tag; no quote -> omit the tag */,
+ "unmet_need": string /* one sentence: what would help this person that they don't have today */}
 
-function heuristicTags(text: string): string[] {
-  const t = text.toLowerCase();
-  const tags: string[] = [];
-  if (/(working|progress|difference)/.test(t)) tags.push("UNCERTAINTY_IF_WORKING");
-  if (/(measure|track|photo|compare)/.test(t)) tags.push("MEASUREMENT_TRACKING");
-  if (/(side effect|libido|shed)/.test(t)) tags.push("SIDE_EFFECTS");
-  if (/(cost|expensive|afford)/.test(t)) tags.push("COST");
-  if (/(derm|doctor|prescription)/.test(t)) tags.push("ACCESS_TO_CARE");
-  return tags.slice(0, 3);
-}
+STRUGGLE TAG RULES (precision over recall; if in doubt, leave it out):
+${struggleRulesText()}`;
 
 export async function backfillInsights(opts?: { limit?: number }): Promise<number> {
   const conversations = await prisma.conversation.findMany({
@@ -32,26 +24,26 @@ export async function backfillInsights(opts?: { limit?: number }): Promise<numbe
   for (const c of conversations) {
     const postText = `${c.title}\n${c.messages[0]?.content ?? ""}`.slice(0, 4000);
     let theme = "";
-    let tags: string[] = [];
+    let evidence: StruggleEvidence[] = [];
     let unmet = "";
     if (env.ANTHROPIC_API_KEY) {
       try {
         const raw = (await analyzeWithAnthropic(SYSTEM, `r/${c.subreddit}\n\n${postText}`)) as {
-          problem_theme?: string; struggle_tags?: string[]; unmet_need?: string;
+          problem_theme?: string; struggle_evidence?: { tag?: unknown; quote?: unknown }[]; unmet_need?: string;
         };
         theme = String(raw.problem_theme ?? "").trim().toLowerCase();
-        tags = (raw.struggle_tags ?? []).filter((t): t is StruggleTag => TAG_SET.has(String(t)));
+        evidence = validateStruggles(raw.struggle_evidence, postText).evidence;
         unmet = String(raw.unmet_need ?? "");
       } catch {
-        tags = heuristicTags(postText);
+        evidence = detectStruggles(postText);
       }
     } else {
-      tags = heuristicTags(postText);
+      evidence = detectStruggles(postText);
     }
-    if (!theme && !tags.length && !unmet) continue;
+    if (!theme && !evidence.length && !unmet) continue;
     await prisma.conversation.update({
       where: { id: c.id },
-      data: { problemTheme: theme, struggleTags: tags, unmetNeed: unmet },
+      data: { problemTheme: theme, struggleTags: evidence.map((e) => e.tag), struggleEvidence: evidence.map((e) => ({ ...e })), unmetNeed: unmet },
     });
     updated++;
   }

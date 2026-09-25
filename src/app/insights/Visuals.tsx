@@ -99,7 +99,7 @@ export interface Rank {
   share: number;
   communities: { key: string; count: number }[];
   themes: { theme: string; count: number }[];
-  examples: { title: string; url: string; subreddit: string }[];
+  examples: { title: string; url: string; subreddit: string; quote: string; provider: string }[];
 }
 
 export function Ranked({ items, total }: { items: Rank[]; total: number }) {
@@ -124,7 +124,7 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                 <span className="ml-auto shrink-0 opacity-60 group-open:hidden">sources ▸</span>
               </div>
             </summary>
-            <div className="ml-10 mt-3 grid gap-5 rounded-2xl p-4 text-[12px] md:grid-cols-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+            <div className="ml-10 mt-3 grid gap-5 rounded-2xl p-4 text-[12px] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ background: "rgba(255,255,255,0.05)" }}>
               <div>
                 <div className="pulse-eyebrow">Where</div>
                 <div className="pulse-body mt-1">{p.communities.map((c) => `r/${c.key} · ${c.count}`).join("   ")}</div>
@@ -132,8 +132,22 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                 <ul className="pulse-body mt-1 m-0 list-none space-y-0.5 p-0">{p.themes.map((t) => <li key={t.theme}>{t.theme} <span className="pulse-muted">×{t.count}</span></li>)}</ul>
               </div>
               <div>
-                <div className="pulse-eyebrow">Sources</div>
-                <ul className="mt-1 m-0 list-none space-y-1 p-0">{p.examples.map((e, j) => <li key={j}><a href={e.url} target="_blank" rel="noreferrer" className="src">{e.title}</a> <span className="pulse-muted">r/{e.subreddit}</span></li>)}</ul>
+                <div className="pulse-eyebrow">Why each one counts · {p.count} {p.count === 1 ? "person" : "people"}, in their own words</div>
+                <ul className="mt-1 m-0 list-none space-y-2 p-0">
+                  {p.examples.map((e, j) => (
+                    <li key={j} className="border-l pl-2.5" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
+                      {e.quote ? (
+                        <div className="pulse-body italic">“{e.quote}”</div>
+                      ) : (
+                        <div className="pulse-muted italic">no quote recorded — tagged before evidence was required</div>
+                      )}
+                      <div className="pulse-muted mt-0.5 truncate">
+                        <a href={e.url} target="_blank" rel="noreferrer" className="src">{e.title}</a> · r/{e.subreddit}
+                        {e.provider === "heuristic" ? " · keyword rule" : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </details>

@@ -1,4 +1,5 @@
 import type { KnowledgeBase } from "@/lib/settings";
+import { struggleRulesText } from "@/lib/insights/taxonomy";
 
 export const ANALYSIS_SCHEMA_DESCRIPTION = `Return ONLY a JSON object with exactly these keys:
 {
@@ -7,7 +8,9 @@ export const ANALYSIS_SCHEMA_DESCRIPTION = `Return ONLY a JSON object with exact
   "treatment": string,                // e.g. "Minoxidil", "Finasteride", "PRP", "" if none
   "treatment_duration": string,       // e.g. "4 months", "" if unknown
   "problem_theme": string,            // short canonical label (3-7 words, lowercase, no names) naming the CLASS of problem so many posts map to the same theme, e.g. "unsure if treatment is working", "choosing between treatments", "shedding after starting minoxidil"
-  "struggle_tags": string[],          // 1-3 tags from: UNCERTAINTY_IF_WORKING, MEASUREMENT_TRACKING, SIDE_EFFECTS, COST, ACCESS_TO_CARE, CONFLICTING_INFO, EMOTIONAL_DISTRESS, CONSISTENCY_ADHERENCE, DIAGNOSIS_UNCLEAR, TIME_TO_RESULTS, PRODUCT_CHOICE, SOCIAL_STIGMA, OTHER
+  "struggle_evidence": [               // 1-2 items normally, 3 at most. Each = one struggle tag + the VERBATIM words from the person's own post/comments that prove it (copy 5-25 words exactly, no paraphrase). No quote → do not include the tag. Tags without a real quote are discarded by the system.
+    { "tag": string, "quote": string } // tag from the STRUGGLE TAG RULES below
+  ],
   "unmet_need": string,               // one sentence: what would actually help this person that they don't have today
   "intent": "MEASUREMENT" | "UNCERTAINTY" | "TREATMENT_JOURNEY" | "HAIR_PROBLEM" | "PRODUCT_INTENT" | "OTHER",
   "foler_relevance": number,          // 0-100. How relevant is the problem of *measuring/tracking hair or scalp change over time* to this person
@@ -75,6 +78,10 @@ MESSAGE QUALITY for suggested_response:
 - Easy to respond to (often ends with one concrete question).
 - Never generic boilerplate. Never mention FOLĒR unless should_mention_foler is true and the workflow allows it.
 - If community context says promotion sensitivity is HIGH, be extra conservative about INTRODUCE_FOLER.
+
+STRUGGLE TAG RULES (population-level statistics are built from these, so precision matters more than recall):
+${struggleRulesText()}
+Tag only what the person is struggling with RIGHT NOW in their own words. One tag is fine. Never add a tag because it is related to FOLĒR or because it "probably" applies. If in doubt, leave it out.
 
 SCORING GUIDANCE (operational prioritisation only, not a prediction):
 - problem_relevance 0-30: how closely the person's problem matches "objectively tracking hair/scalp change". Generic hair-loss venting: 5-12. Explicit trouble judging progress: 20-30.
