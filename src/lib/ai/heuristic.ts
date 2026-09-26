@@ -4,6 +4,8 @@ import { detectStruggles } from "@/lib/insights/heuristicStruggles";
 export interface HeuristicContext {
   title: string;
   body: string;
+  /** Reddit username of the original poster; only their messages can back a struggle tag. */
+  author?: string;
   messages: { author: string; content: string; direction: "INBOUND" | "OUTBOUND"; postedAt: Date }[];
   postCreatedAt: Date;
   permissionState: string;
@@ -129,7 +131,11 @@ export function analyzeHeuristically(ctx: HeuristicContext): Analysis {
     reason = "Little relevance to the tracking/measurement problem; nothing genuine to add.";
   }
 
-  const struggle_evidence = detectStruggles(`${ctx.title}\n${ctx.body}\n${lastInbound?.content ?? ""}`);
+  const op = ctx.author?.toLowerCase();
+  const ownReplies = op
+    ? ctx.messages.filter((m) => m.direction === "INBOUND" && m.author.toLowerCase() === op && m.content !== ctx.body)
+    : [];
+  const struggle_evidence = detectStruggles([ctx.title, ctx.body, ...ownReplies.map((m) => m.content)].join("\n"));
 
   return T({
     problem: ctx.title,

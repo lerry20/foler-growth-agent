@@ -93,8 +93,53 @@ describe("detectStruggles (keyword fallback)", () => {
 
   it("tags UNCERTAINTY_IF_WORKING only for explicit efficacy doubt on a treatment", () => {
     expect(tags("Six months on topical min and I honestly can't tell if it's doing anything.")).toContain("UNCERTAINTY_IF_WORKING");
-    expect(tags("Been on fin for a year, no visible improvement at all.")).toContain("UNCERTAINTY_IF_WORKING");
     expect(tags("Is fin actually working for anyone at 0.5mg?")).toContain("UNCERTAINTY_IF_WORKING");
+    expect(tags("I've been on finasteride for like 5 months, and it's really hard to know for sure what effect it's had.")).toContain("UNCERTAINTY_IF_WORKING");
+  });
+  it("a known bad outcome is TIME_TO_RESULTS (no / disappointing results), not uncertainty", () => {
+    const t = tags("Been on fin for a year, no visible improvement at all.");
+    expect(t).toContain("TIME_TO_RESULTS");
+    expect(t).not.toContain("UNCERTAINTY_IF_WORKING");
+    expect(tags("A year on topical min and I didn't experience any results.")).toContain("TIME_TO_RESULTS");
+    expect(tags("What should I expect from finasteride?")).toEqual(["TIME_TO_RESULTS"]);
+    expect(tags("Is my dread shed lasting too long? 9 weeks in and no sign of it slowing.")).toContain("TIME_TO_RESULTS");
+    expect(tags("Been on min for 2 years, fin for 10 months, still getting thinner.")).toContain("TIME_TO_RESULTS");
+    expect(tags("Is this a shed or has the fin stopped working?")).toContain("TIME_TO_RESULTS");
+    expect(tags("Tried topical for a year and a half, researched that I am probably a non-responder.")).toContain("TIME_TO_RESULTS");
+  });
+  it("does not tag TIME_TO_RESULTS for 'not working' about something other than the treatment", () => {
+    expect(tags("It feels like the connection between my brain and my penis isn't working.")).not.toContain("TIME_TO_RESULTS");
+  });
+  it("tags PRODUCT_CHOICE for the person's own treatment decision", () => {
+    expect(tags("Oral vs topical minoxidil")).toEqual(["PRODUCT_CHOICE"]);
+    expect(tags("Should I switch to dut? Been on fin 10 months.")).toContain("PRODUCT_CHOICE");
+    expect(tags("Can anyone advise me on how to use and layer these different treatments?")).toContain("PRODUCT_CHOICE");
+    expect(tags("I'm basically deciding between foam and PG-free liquid.")).toContain("PRODUCT_CHOICE");
+    expect(tags("If so, what helped you, or is there anything you would recommend trying?")).toContain("PRODUCT_CHOICE");
+    expect(tags("I was thinking to gradually switch to oral min.")).toContain("PRODUCT_CHOICE");
+  });
+  it("does not tag PRODUCT_CHOICE for advice aimed at others or a satisfied report", () => {
+    expect(tags("If you are thinking about starting minoxidil, just buy it and start.")).not.toContain("PRODUCT_CHOICE");
+    expect(tags("Definitely worth it and I can't wait to see more progress.")).not.toContain("PRODUCT_CHOICE");
+    expect(tags("So I decided to switch from finasteride to dutasteride and here is my experience.")).not.toContain("PRODUCT_CHOICE");
+  });
+  it("a side-effect mention is not a side-effect struggle", () => {
+    expect(tags("There's a chance of sexual dysfunction and severe depression with fin.")).toEqual([]);
+    expect(tags("Side effects wise everything is going smooth so far.")).not.toContain("SIDE_EFFECTS");
+    expect(tags("Any ways to minimise side effects before I start?")).not.toContain("SIDE_EFFECTS");
+    expect(tags("Did any of you get side effects on oral min?")).not.toContain("SIDE_EFFECTS");
+    expect(tags("No side effects at all the first month. Month three though my libido crashed and I couldn't perform.")).toContain("SIDE_EFFECTS");
+  });
+  it("stress as a cause or a personality trait is not emotional distress", () => {
+    expect(tags("He thinks it is due to stress and anxiety.")).not.toContain("EMOTIONAL_DISTRESS");
+    expect(tags("I'm generally an anxious person and haven't had any hairloss this intense before, so I am unsure what's causing it.")).not.toContain("EMOTIONAL_DISTRESS");
+    expect(tags("I am incredibly anxious about taking an oral pill systemically.")).toContain("EMOTIONAL_DISTRESS");
+  });
+  it("keeps the quote window around the matched phrase in a very long sentence", () => {
+    const long = "Now I know I'm going to get told off for assuming things since I'm not a doctor and should just listen to mine, but he told me that my results are all within range and appear normal to him, so there is no metabolic reason for the hairloss and I should just wait it out and see what happens.";
+    const e = detectStruggles(long).find((x) => x.tag === "DIAGNOSIS_UNCLEAR");
+    expect(e?.quote).toMatch(/no metabolic reason for the hairloss/);
+    expect(e!.quote.length).toBeLessThanOrEqual(220);
   });
   it("does not tag it for generic mentions of working / progress / difference", () => {
     expect(tags("Hair regrowth products to use? Anything else I should add to my stack? Working full time now.")).not.toContain("UNCERTAINTY_IF_WORKING");

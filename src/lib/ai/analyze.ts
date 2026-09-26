@@ -73,6 +73,7 @@ export async function qualifyConversation(
   const heuristicCtx = {
     title: conversation.title,
     body: post?.content ?? "",
+    author: post?.author ?? conversation.lead.redditUsername,
     messages: conversation.messages.map((m) => ({ author: m.author, content: m.content, direction: m.direction, postedAt: m.postedAt })),
     postCreatedAt: post?.postedAt ?? conversation.createdAt,
     permissionState,
