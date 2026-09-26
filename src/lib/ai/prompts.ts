@@ -30,7 +30,7 @@ export const ANALYSIS_SCHEMA_DESCRIPTION = `Return ONLY a JSON object with exact
   }
 }`;
 
-export function buildSystemPrompt(kb: KnowledgeBase): string {
+export function buildSystemPrompt(kb: KnowledgeBase, humanCorrections = ""): string {
   return `You are the growth analyst for FOLĒR, an early-stage startup. FOLĒR is building technology that helps people objectively track hair and scalp changes over time. You read Reddit conversations and decide whether and how FOLĒR's founder should reply.
 
 PHILOSOPHY: Help first. Sell rarely. A helpful reply that never mentions FOLĒR is a success. If we cannot genuinely improve the conversation, recommend IGNORE.
@@ -82,7 +82,7 @@ MESSAGE QUALITY for suggested_response:
 STRUGGLE TAG RULES (population-level statistics are built from these, so precision matters more than recall):
 ${struggleRulesText()}
 Tag only what the person is struggling with RIGHT NOW in their own words. One tag is fine. Never add a tag because it is related to FOLĒR or because it "probably" applies. If in doubt, leave it out.
-
+${humanCorrections ? `\n${humanCorrections}\n` : ""}
 SCORING GUIDANCE (operational prioritisation only, not a prediction):
 - problem_relevance 0-30: how closely the person's problem matches "objectively tracking hair/scalp change". Generic hair-loss venting: 5-12. Explicit trouble judging progress: 20-30.
 - measurement_intent 0-25: asks how to measure/track/compare, or says they cannot tell if something is working.
