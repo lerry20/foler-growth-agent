@@ -14,6 +14,7 @@ export interface SourceExample {
   /** The person's verbatim words that earned this tag; empty for legacy rows classified before evidence was required. */
   quote: string;
   provider: string;
+  human?: "confirmed" | "added";
 }
 
 export interface InsightRow {
@@ -101,13 +102,17 @@ export function groupProblems(rows: InsightRow[]): ProblemCluster[] {
       share: Math.round((hits.length / analyzed) * 1000) / 10,
       communities: countBy(hits, (r) => r.subreddit),
       themes: [...themeMap.entries()].map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 5),
-      examples: hits.slice(0, 12).map((r) => ({
-        title: r.title,
-        url: r.url,
-        subreddit: r.subreddit,
-        quote: r.struggleEvidence.find((e) => e.tag === tag)?.quote ?? "",
-        provider: r.provider,
-      })),
+      examples: hits.slice(0, 12).map((r) => {
+        const ev = r.struggleEvidence.find((e) => e.tag === tag);
+        return {
+          title: r.title,
+          url: r.url,
+          subreddit: r.subreddit,
+          quote: ev?.quote ?? "",
+          provider: r.provider,
+          human: ev?.human,
+        };
+      }),
     });
   }
   return out.sort((a, b) => b.count - a.count);
