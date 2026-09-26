@@ -76,7 +76,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
         problemTheme: true,
         unmetNeed: true,
         lead: { select: { intent: true, treatment: true, hairConcern: true } },
-        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true, note: true } },
+        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true, note: true, quote: true } },
         intentReview: { select: { intent: true } },
         messages: { where: { direction: "INBOUND" }, select: { author: true, content: true, postedAt: true, isOriginalPost: true }, orderBy: { postedAt: "asc" } },
       },
@@ -94,6 +94,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
           const r = byTag.get(e.tag);
           return { tag: e.tag, quote: e.quote, verdict: r?.verdict ?? null, shouldBe: r?.shouldBe ?? null, note: r?.note ?? "", fromOp: e.quote ? quoteAppears(e.quote, opText) : false };
         });
+      // Labels a human confirmed stay visible even when a later engine run dropped them.
+      for (const r of c.struggleReviews) {
+        if (r.verdict !== "RIGHT" || !isStruggleTag(r.tag) || labels.some((l) => l.tag === r.tag)) continue;
+        labels.push({ tag: r.tag, quote: r.quote, verdict: r.verdict, shouldBe: null, note: r.note, fromOp: r.quote ? quoteAppears(r.quote, opText) : false });
+      }
       const missed = c.struggleReviews.filter((r) => r.verdict === "MISSED").map((r) => r.tag).filter(isStruggleTag);
       // A Wrong label without "what it should be" is still an open question.
       const unjudged = labels.filter((l) => !l.verdict || (l.verdict === "WRONG" && !l.shouldBe)).length;

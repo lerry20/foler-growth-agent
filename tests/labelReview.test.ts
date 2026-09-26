@@ -33,6 +33,18 @@ describe("applyLabelReviews", () => {
     expect(r.human).toBe(true);
   });
 
+  it("a label confirmed RIGHT survives a later engine run that dropped it, with the reviewed quote", () => {
+    const r = applyLabelReviews([], [
+      { tag: "COST", verdict: "RIGHT", quote: "can't afford dut" },
+      { tag: "SIDE_EFFECTS", verdict: "WRONG", shouldBe: "PRODUCT_CHOICE", quote: "should I start fin" },
+    ]);
+    expect(r.tags).toEqual(["COST", "PRODUCT_CHOICE"]);
+    expect(r.evidence).toEqual([
+      { tag: "COST", quote: "can't afford dut", human: "confirmed" },
+      { tag: "PRODUCT_CHOICE", quote: "should I start fin", human: "corrected" },
+    ]);
+  });
+
   it("ignores a MISSED verdict for a tag the engine already gave, and unknown tags", () => {
     const r = applyLabelReviews(engine, [
       { tag: "COST", verdict: "MISSED" },

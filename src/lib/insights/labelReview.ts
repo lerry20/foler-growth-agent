@@ -5,7 +5,7 @@ import type { StruggleEvidence } from "./evidence";
 import { parseEvidence } from "./evidence";
 
 /** `shouldBe` on a WRONG verdict: what the quote really shows — another tag, or NONE (no struggle). */
-export type LabelReview = { tag: string; verdict: StruggleVerdict; shouldBe?: string | null };
+export type LabelReview = { tag: string; verdict: StruggleVerdict; shouldBe?: string | null; quote?: string };
 
 export const NO_STRUGGLE = "NONE";
 
@@ -16,7 +16,8 @@ export function isStruggleTag(t: string): t is StruggleTag {
 }
 
 /** Struggle labels after human review: WRONG removes an engine label (and adds what it should have
- *  been, with the same quote), MISSED adds one. */
+ *  been, with the same quote), MISSED adds one. A label confirmed RIGHT stays even if a later engine
+ *  run no longer produces it — the human decision outranks the engine. */
 export function applyLabelReviews(
   evidence: StruggleEvidence[],
   reviews: LabelReview[],
@@ -28,8 +29,12 @@ export function applyLabelReviews(
     .map((e) => (verdict(e.tag) === "RIGHT" ? { ...e, human: "confirmed" } : e));
   const has = (t: string) => kept.some((e) => e.tag === t);
   for (const r of reviews) {
+    if (r.verdict !== "RIGHT" || !isStruggleTag(r.tag) || has(r.tag)) continue;
+    kept.push({ tag: r.tag, quote: r.quote ?? "", human: "confirmed" });
+  }
+  for (const r of reviews) {
     if (r.verdict !== "WRONG" || !r.shouldBe || !isStruggleTag(r.shouldBe) || has(r.shouldBe) || verdict(r.shouldBe) === "WRONG") continue;
-    const quote = evidence.find((e) => e.tag === r.tag)?.quote ?? "";
+    const quote = evidence.find((e) => e.tag === r.tag)?.quote ?? r.quote ?? "";
     kept.push({ tag: r.shouldBe, quote, human: "corrected" });
   }
   for (const r of reviews) {
@@ -86,7 +91,9 @@ export async function reviewLabel(conversationId: string, tag: StruggleTag, verd
     where: { id: conversationId },
     select: { struggleEvidence: true, analysisProvider: true },
   });
-  const engine = parseEvidence(c.struggleEvidence).find((e) => e.tag === tag);
+  const engine =
+    parseEvidence(c.struggleEvidence).find((e) => e.tag === tag) ??
+    (await prisma.struggleReview.findUnique({ where: { conversationId_tag: { conversationId, tag } }, select: { quote: true } }).then((r) => (r?.quote ? { tag, quote: r.quote } : undefined)));
   if (verdict === "MISSED" && engine) throw new Error("The engine already gave this label — judge it right or wrong instead.");
   if (verdict !== "MISSED" && !engine) throw new Error("The engine did not give this label here.");
   if (shouldBe && verdict !== "WRONG") throw new Error("Only a wrong label can be corrected to something else.");
