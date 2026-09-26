@@ -124,28 +124,30 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                 <span className="ml-auto shrink-0 opacity-60 group-open:hidden">sources ▸</span>
               </div>
             </summary>
-            <div className="ml-10 mt-3 grid gap-5 rounded-2xl p-4 text-[12px] md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ background: "rgba(255,255,255,0.05)" }}>
-              <div>
+            <div className="mt-3 grid gap-5 rounded-2xl p-4 text-[12px] md:ml-10 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div className="min-w-0">
                 <div className="pulse-eyebrow">Where</div>
-                <div className="pulse-body mt-1">{p.communities.map((c) => `r/${c.key} · ${c.count}`).join("   ")}</div>
+                <div className="pulse-body mt-1 break-words">{p.communities.map((c) => `r/${c.key} · ${c.count}`).join("   ")}</div>
                 <div className="pulse-eyebrow mt-3">How they say it</div>
                 <ul className="pulse-body mt-1 m-0 list-none space-y-0.5 p-0">{p.themes.map((t) => <li key={t.theme}>{t.theme} <span className="pulse-muted">×{t.count}</span></li>)}</ul>
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="pulse-eyebrow">Why each one counts · {p.count} {p.count === 1 ? "person" : "people"}, in their own words</div>
                 <ul className="mt-1 m-0 list-none space-y-2 p-0">
                   {p.examples.map((e, j) => (
-                    <li key={j} className="border-l pl-2.5" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
+                    <li key={j} className="min-w-0 border-l pl-2.5" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
                       {e.quote ? (
-                        <div className="pulse-body italic">“{e.quote}”</div>
+                        <div className="pulse-body break-words italic">“{e.quote}”</div>
                       ) : e.human === "added" ? (
                         <div className="pulse-muted italic">added by a human reviewer — the engine missed it</div>
                       ) : (
                         <div className="pulse-muted italic">no quote recorded — tagged before evidence was required</div>
                       )}
-                      <div className="pulse-muted mt-0.5 truncate">
-                        <a href={e.url} target="_blank" rel="noreferrer" className="src">{e.title}</a> · r/{e.subreddit}
-                        {e.human === "added" ? " · human-added" : e.human === "corrected" ? " · human-corrected (engine had it under another label)" : e.human === "confirmed" ? " · human-confirmed" : e.provider === "heuristic" ? " · keyword rule" : ""}
+                      <div className="pulse-muted mt-0.5 flex min-w-0 flex-wrap gap-x-1">
+                        <span className="shrink-0">
+                          {e.human === "added" ? "human-added · " : e.human === "corrected" ? "human-corrected (engine had another label) · " : e.human === "confirmed" ? "human-confirmed · " : e.provider === "heuristic" ? "keyword rule · " : ""}r/{e.subreddit} ·
+                        </span>
+                        <a href={e.url} target="_blank" rel="noreferrer" className="src min-w-0 flex-1 truncate">{e.title}</a>
                       </div>
                     </li>
                   ))}
