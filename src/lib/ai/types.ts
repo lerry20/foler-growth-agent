@@ -15,6 +15,8 @@ export interface Analysis {
   struggle_tags: string[];
   /** Verbatim quotes from the thread backing each struggle tag; tags without one are dropped. */
   struggle_evidence: { tag: string; quote: string }[];
+  /** Tags the model proposed that the evidence check or the second-opinion judge rejected, with the reason. */
+  struggle_dropped?: { tag: string; quote: string; why: string }[];
   unmet_need: string;
   intent: "MEASUREMENT" | "UNCERTAINTY" | "TREATMENT_JOURNEY" | "HAIR_PROBLEM" | "PRODUCT_INTENT" | "OTHER";
   foler_relevance: number;

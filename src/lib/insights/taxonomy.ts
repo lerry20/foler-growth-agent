@@ -43,7 +43,7 @@ export const STRUGGLE_RULES: Record<StruggleTag, string> = {
   TIME_TO_RESULTS:
     "They are on (or finished) a treatment and the RESULTS are the problem: none or too few (\"a year on min, didn't experience any results\"), worse than hoped (\"still getting thinner on fin\", \"density worse than baseline\"), a shed that won't resolve (\"9 weeks in, no sign of the shed slowing\"), or they need expectations set (\"what should I expect\", \"how long until I see something\"). The outcome is visible to them and disappointing, or they ask what outcome/timeline to expect. NOT the same as UNCERTAINTY_IF_WORKING (there they cannot tell either way); not for acknowledging 'it's still early' without concern; not for happy progress reports.",
   PRODUCT_CHOICE:
-    "THIS person is choosing between treatments, doses, forms, brands, how to layer/use them, or what to add/stack/switch to. Includes 'should I start X?', 'topical vs oral?', 'what's the best thing to take?'. Not for advice they give to others (\"if you're thinking about starting minoxidil, just buy it\").",
+    "THIS person is choosing between treatments, doses, forms, brands, how to layer/use them, or what to add/stack/switch to. Includes 'should I start X?', 'topical vs oral?', 'what's the best thing to take?', and asking others what to try or what worked for them ('what helped you?', 'what worked better for you, oral or topical?') — quote that question itself, even if they already have a prescription. Not for advice they give to others (\"if you're thinking about starting minoxidil, just buy it\").",
   SOCIAL_STIGMA:
     "Comments from others, dating, work, hiding it, feeling judged.",
   OTHER:
@@ -53,8 +53,10 @@ export const STRUGGLE_RULES: Record<StruggleTag, string> = {
 export const STRUGGLE_PRINCIPLE =
   "A struggle is something this person is having trouble with RIGHT NOW, stated in their own words. " +
   "Never count: denials (\"no side effects\"), past history (\"years ago I tried…\"), neutral facts, mild curiosity, " +
-  "or words written by other commenters. Pick the single strongest tag; add a second only if it is independently and " +
-  "clearly supported by a different sentence; a third is rare. When in doubt, leave it out.";
+  "or words written by other commenters. List EVERY distinct struggle this person clearly states, each backed by " +
+  "its own sentence — a person choosing between products AND upset about results has two struggles, not one. " +
+  "Do not drop a clearly stated struggle because another one is stronger; do not add one that is only implied. " +
+  "Usually 1–2, at most 3. Unsure whether a sentence really shows a struggle? Leave that one out.";
 
 export function struggleRulesText(): string {
   return STRUGGLE_PRINCIPLE + "\n" + STRUGGLE_TAGS.map((t) => `- ${t}: ${STRUGGLE_RULES[t]}`).join("\n");
