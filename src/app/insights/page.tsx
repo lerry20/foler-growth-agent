@@ -107,7 +107,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
           </div>
           <div className="relative mt-12 grid grid-cols-2 gap-8 md:grid-cols-4">
             <Metric value={totals.people} label="people heard" sub={`${m.posts} posts · ${m.comments} comments read`} />
-            <Metric value={totals.analyzed} label="conversations analyzed" sub={`${totals.communities} communities`} />
+            <Metric value={totals.analyzed} label="people analyzed" sub={`${totals.conversations} threads · ${totals.analyzedCommenters} from comments · ${totals.communities} communities`} />
             <Metric value={data.unmetNeeds.length} label="unmet needs mapped" sub={dateLabel} />
             <div>
               <div className="pulse-metric">{top ? `${top.share}%` : "—"}</div>
@@ -118,7 +118,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
         </Reveal>
 
         <Reveal className="col-span-12 xl:col-span-7" delay={60}>
-          <Head title="What they struggle with" sub={`share of ${totals.analyzed} conversations · up to 3 tags each`} />
+          <Head title="What they struggle with" sub={`share of ${totals.analyzed} people describing their own case · up to 3 tags each`} />
           <Ranked total={totals.analyzed} items={data.problems.map((p) => ({ label: p.label, count: p.count, share: p.share, communities: p.communities, themes: p.themes, examples: p.examples }))} />
         </Reveal>
 
@@ -139,7 +139,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
         </div>
 
         <Reveal className="col-span-12 xl:col-span-7" delay={60}>
-          <Head title="Where the signal comes from" sub="community → struggle · ribbon width = conversations" />
+          <Head title="Where the signal comes from" sub="community → struggle · ribbon width = people" />
           <Flow left={flowLeft} right={flowRight} links={flowLinks} />
         </Reveal>
 
@@ -152,7 +152,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
                 <li><b>Pull</b> the newest posts from {m.monitoredCommunities.length} communities (up to 100 each per pass) — nothing is hand-picked.</li>
                 <li><b>Keep</b> posts that mention one of {m.searchTerms} fixed terms, are ≤ {m.scanWindowDays} days old and that we have not read before.</li>
                 <li><b>Read</b> the full thread: post + every comment.</li>
-                <li><b>Classify</b> each one with {m.model}; all {totals.analyzed} analyzed conversations count, whether or not we reply.</li>
+                <li><b>Classify</b> every person who describes their own case with {m.model} — the poster and each such commenter separately, from their own words; all {totals.analyzed} count, whether or not we reply.</li>
               </ol>
             </div>
             <div>
@@ -167,7 +167,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
                 </div>
                 <div>
                   <div className="text-[18px] font-semibold tabular-nums">{m.voices.ownCase}</div>
-                  <div className="pulse-muted text-[11px]">describe their own case · {m.voices.ownCaseCommenters} from comments</div>
+                  <div className="pulse-muted text-[11px]">describe their own case · {m.voices.ownCaseCommenters} from comments ({m.voices.commentersLabeled} labelled)</div>
                 </div>
                 <div>
                   <div className="text-[18px] font-semibold tabular-nums">{m.voices.pending}</div>
@@ -207,7 +207,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
             <div>
               <div className="pulse-eyebrow mb-2">Classification</div>
               <p className="pulse-body m-0 text-[12px]">
-                Each conversation (post + comments) is read by <span className="text-white">{m.model}</span>, which writes a one-line problem, up to 3 struggle tags from a fixed {m.taxonomySize}-item taxonomy, and the unmet need. Percentages = conversations carrying a tag ÷ analyzed conversations ({totals.analyzed}), so they can sum above 100%. Mock/demo data is excluded{includeMock ? " (currently shown)" : ""}; self-reported minors are never engaged but still count as signal. Sample confidence: <span className="text-white">{m.confidence}</span>.
+                Each thread (post + comments) is read by <span className="text-white">{m.model}</span>. Every person who describes their own case — the poster and each such commenter — gets up to 3 struggle tags from a fixed {m.taxonomySize}-item taxonomy, each backed by a verbatim quote from <i>their own</i> words; the poster also gets a one-line problem and unmet need. Percentages = people carrying a tag ÷ people analyzed ({totals.analyzed}), so they can sum above 100%. Mock/demo data is excluded{includeMock ? " (currently shown)" : ""}; self-reported minors are never engaged but still count as signal. Sample confidence: <span className="text-white">{m.confidence}</span>.
               </p>
             </div>
           </div>

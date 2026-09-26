@@ -231,7 +231,10 @@ model Voice {
   gateProvider      String?
   gatedAt           DateTime?
   classifierVersion String       @default("v2")
+  /// Struggle labels from this voice's own words (commenters; OPs carry theirs on the conversation).
   struggleEvidence  Json         @default("[]")
+  labelProvider     String?
+  labeledAt         DateTime?
   needsReview       Boolean      @default(false)
   review            VoiceReview?
   createdAt         DateTime     @default(now())

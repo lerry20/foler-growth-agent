@@ -1,7 +1,8 @@
 import { prisma } from "../src/lib/db";
 import { gateVoices, syncVoices } from "../src/lib/voices/sync";
+import { labelVoices } from "../src/lib/voices/struggles";
 
-/** Split every real conversation into voices, then run the relevance gate on the ungated ones. */
+/** Split every real conversation into voices, gate the ungated ones, then label the struggles of counted commenters. */
 async function main() {
   const limit = Number(process.argv[2] ?? 200);
   const convos = await prisma.conversation.findMany({
@@ -16,8 +17,9 @@ async function main() {
     changed += r.changed;
   }
   const gate = await gateVoices({ limit });
+  const labels = await labelVoices({ limit });
   const total = await prisma.voice.count({ where: { conversation: { source: { not: "MOCK" } } } });
-  console.log(JSON.stringify({ conversations: convos.length, voicesCreated: created, voicesReset: changed, voicesTotal: total, gate }, null, 2));
+  console.log(JSON.stringify({ conversations: convos.length, voicesCreated: created, voicesReset: changed, voicesTotal: total, gate, labels }, null, 2));
 }
 
 main()

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { groupThemes, groupStruggles, countBy, isoWeek, normalizeTreatments, type InsightRow } from "@/lib/insights/aggregate";
 
 const row = (over: Partial<InsightRow>): InsightRow => ({
-  id: "c1", leadId: "l1", subreddit: "tressless", title: "t", url: "u",
+  id: "c1", leadId: "l1", role: "OP", subreddit: "tressless", title: "t", url: "u",
   createdAt: new Date("2025-01-06T12:00:00Z"), postedAt: new Date("2025-01-06T12:00:00Z"), commentCount: 0, analyzed: true,
   problemTheme: "", struggleTags: [], struggleEvidence: [], provider: "anthropic", unmetNeed: "", intent: "", hairConcern: "", treatment: "",
   ...over,
