@@ -3,15 +3,31 @@ import type { Prisma, SpeaksAbout } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { SPEAKS_ABOUT_LABELS, scoreGate, effective, isCounted } from "@/lib/voices/review";
 import { MIN_VOICE_WORDS } from "@/lib/voices/split";
+import { STRUGGLE_LABELS } from "@/lib/insights/taxonomy";
+import { parseEvidence, quoteAppears } from "@/lib/insights/evidence";
+import { scoreLabels, isStruggleTag } from "@/lib/insights/labelReview";
 import { Verdict } from "./Verdict";
+import { Labels } from "./Labels";
 
 export const dynamic = "force-dynamic";
 
 const PAGE = 40;
+const LABEL_PAGE = 20;
 const SHOW = ["todo", "disagree", "reviewed", "all"] as const;
 type Show = (typeof SHOW)[number];
 const SHOW_LABEL: Record<Show, string> = { todo: "Not yet checked by you", disagree: "You and the model disagree", reviewed: "Checked by you", all: "Everything" };
+const LABEL_SHOW = ["todo", "reviewed", "nolabels", "all"] as const;
+type LabelShow = (typeof LABEL_SHOW)[number];
+const LABEL_SHOW_LABEL: Record<LabelShow, string> = { todo: "Labels you haven't judged", reviewed: "Judged by you", nolabels: "Engine found nothing", all: "Everything" };
 const MODEL_FILTERS: (SpeaksAbout | "PENDING")[] = ["OWN_CASE", "ADVICE_ONLY", "SOMEONE_ELSE", "VENDOR", "META", "UNCLEAR", "PENDING"];
+const INTENT_LABEL: Record<string, string> = {
+  MEASUREMENT: "wants to measure progress",
+  UNCERTAINTY: "unsure if treatment works",
+  TREATMENT_JOURNEY: "sharing their treatment journey",
+  HAIR_PROBLEM: "describing a hair problem",
+  PRODUCT_INTENT: "looking for a product",
+  OTHER: "other",
+};
 
 const CHIP: Record<SpeaksAbout, string> = {
   OWN_CASE: "bg-emerald-100 text-emerald-800",
@@ -30,15 +46,219 @@ function fmt(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+const pill = (active: boolean) =>
+  `rounded-full border px-2.5 py-1 text-[12px] ${active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"}`;
+
+const REAL: Prisma.ConversationWhereInput = { source: { not: "MOCK" }, lead: { isMock: false } };
+
 export default async function AuditPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
+  const focus = searchParams.focus === "people" ? "people" : "labels";
+  const sub = searchParams.subreddit;
+  const page = Math.max(1, Number(searchParams.page ?? 1) || 1);
+  const subredditRows = await prisma.conversation.groupBy({ by: ["subreddit"], where: REAL });
+  const subreddits = subredditRows.map((r) => r.subreddit).sort();
+
+  const tabs = (
+    <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-2">
+      <Link href="/audit" className={`rounded-md px-3 py-1.5 text-[13px] font-medium ${focus === "labels" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}>
+        1 · What they struggle with
+      </Link>
+      <Link href="/audit?focus=people" className={`rounded-md px-3 py-1.5 text-[13px] font-medium ${focus === "people" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}>
+        2 · Who counts as a person
+      </Link>
+    </div>
+  );
+
+  if (focus === "labels") {
+    const show: LabelShow = (LABEL_SHOW as readonly string[]).includes(searchParams.show ?? "") ? (searchParams.show as LabelShow) : "todo";
+    const convosRaw = await prisma.conversation.findMany({
+      where: { ...REAL, ...(sub ? { subreddit: sub } : {}) },
+      select: {
+        id: true,
+        title: true,
+        subreddit: true,
+        redditUrl: true,
+        lastActivityAt: true,
+        struggleEvidence: true,
+        analysisProvider: true,
+        problemTheme: true,
+        unmetNeed: true,
+        lead: { select: { intent: true, treatment: true, hairConcern: true } },
+        struggleReviews: { select: { tag: true, verdict: true } },
+        messages: { where: { direction: "INBOUND" }, select: { author: true, content: true, postedAt: true, isOriginalPost: true }, orderBy: { postedAt: "asc" } },
+      },
+      orderBy: { lastActivityAt: "desc" },
+    });
+
+    const convos = convosRaw.map((c) => {
+      const op = c.messages.find((m) => m.isOriginalPost);
+      const opMsgs = op ? c.messages.filter((m) => m.author === op.author) : [];
+      const opText = opMsgs.map((m) => m.content).join("\n");
+      const byTag = new Map(c.struggleReviews.map((r) => [r.tag, r.verdict]));
+      const labels = parseEvidence(c.struggleEvidence)
+        .filter((e) => isStruggleTag(e.tag))
+        .map((e) => ({ tag: e.tag, quote: e.quote, verdict: byTag.get(e.tag) ?? null, fromOp: e.quote ? quoteAppears(e.quote, opText) : false }));
+      const missed = c.struggleReviews.filter((r) => r.verdict === "MISSED").map((r) => r.tag).filter(isStruggleTag);
+      return { ...c, op, opMsgs, labels, missed, unjudged: labels.filter((l) => !l.verdict).length };
+    });
+
+    const allReviews = convos.flatMap((c) => c.struggleReviews);
+    const score = scoreLabels(allReviews);
+    const totalLabels = convos.reduce((n, c) => n + c.labels.length, 0);
+    const heuristicLabels = convos.filter((c) => c.analysisProvider === "heuristic").reduce((n, c) => n + c.labels.length, 0);
+    const notFromOp = convos.reduce((n, c) => n + c.labels.filter((l) => !l.fromOp).length, 0);
+    const unjudged = convos.reduce((n, c) => n + c.unjudged, 0);
+
+    const filtered = convos.filter((c) =>
+      show === "todo" ? c.unjudged > 0 : show === "reviewed" ? c.struggleReviews.length > 0 : show === "nolabels" ? c.labels.length === 0 : true,
+    );
+    const pages = Math.max(1, Math.ceil(filtered.length / LABEL_PAGE));
+    const rows = filtered.slice((page - 1) * LABEL_PAGE, page * LABEL_PAGE);
+
+    const qs = (patch: Record<string, string | undefined>) => {
+      const p = new URLSearchParams();
+      const merged = { show: show === "todo" ? undefined : show, subreddit: sub, ...patch };
+      for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
+      const s = p.toString();
+      return `/audit${s ? `?${s}` : ""}`;
+    };
+
+    return (
+      <div className="space-y-4">
+        <header className="max-w-3xl">
+          <h1 className="text-lg font-semibold">Audit the engine</h1>
+          <p className="text-[13px] text-zinc-500">
+            These are the exact labels behind the percentages on Insights. For every thread you see the person&apos;s own words, the struggle label the engine gave, and the
+            sentence it used as proof. Judge each label <b>Right</b> or <b>Wrong</b>, and add anything it <b>missed</b>. Wrong labels disappear from Insights immediately; every
+            verdict becomes a test case the next classifier version must pass.
+          </p>
+        </header>
+        {tabs}
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="card p-3">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-400">Labels the engine gave</div>
+            <div className="text-2xl font-semibold tabular-nums">{totalLabels}</div>
+            <div className="text-[12px] text-zinc-500">on {convos.filter((c) => c.labels.length).length} of {convos.length} threads · {unjudged} not judged yet</div>
+          </div>
+          <div className="card p-3" title="Of the engine's labels you judged, the share you agreed with.">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-400">Labels you agreed with</div>
+            <div className="text-2xl font-semibold tabular-nums">{pct(score.precision)}</div>
+            <div className="text-[12px] text-zinc-500">{score.right} right · {score.wrong} wrong · {score.missed} missed by the engine</div>
+          </div>
+          <div className="card p-3" title="Labels produced by keyword rules while the model was unavailable. These are the weakest and the most worth checking.">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-400">From keyword rules, not a model</div>
+            <div className="text-2xl font-semibold tabular-nums">{heuristicLabels}</div>
+            <div className="text-[12px] text-zinc-500">{totalLabels - heuristicLabels} labelled by Claude before credits ran out</div>
+          </div>
+          <div className="card p-3" title="The proof sentence was not found in the original poster's own words — it came from a commenter or is missing. Such a label says nothing about the poster.">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-400">Proof not in the poster&apos;s words</div>
+            <div className={`text-2xl font-semibold tabular-nums ${notFromOp ? "text-red-700" : ""}`}>{notFromOp}</div>
+            <div className="text-[12px] text-zinc-500">flagged in red on the card — usually wrong</div>
+          </div>
+        </div>
+
+        {score.perTag.length > 0 && (
+          <div className="card p-3 text-[12px] text-zinc-600">
+            <span className="font-medium text-zinc-800">Per label: </span>
+            {score.perTag.slice(0, 8).map((t, i) => (
+              <span key={t.tag}>
+                {i > 0 && " · "}
+                <b>{isStruggleTag(t.tag) ? STRUGGLE_LABELS[t.tag] : t.tag}</b> {t.right} right / {t.wrong} wrong{t.missed ? ` / ${t.missed} missed` : ""}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {LABEL_SHOW.map((s) => (
+            <Link key={s} href={qs({ show: s, page: undefined })} className={pill(show === s)}>{LABEL_SHOW_LABEL[s]}</Link>
+          ))}
+          {subreddits.length > 1 && (
+            <>
+              <span className="mx-1 text-zinc-300">|</span>
+              {subreddits.map((s) => (
+                <Link key={s} href={qs({ subreddit: sub === s ? undefined : s, page: undefined })} className={pill(sub === s)}>r/{s}</Link>
+              ))}
+            </>
+          )}
+        </div>
+
+        <p className="text-[12px] text-zinc-500">Showing {rows.length} of {filtered.length} threads. Labels today are per thread (the original poster); per-commenter labels arrive with the model run.</p>
+
+        <div className="space-y-4">
+          {rows.map((c) => (
+            <section key={c.id} className="card overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50 px-3 py-2">
+                <div className="min-w-0">
+                  <Link href={`/conversations/${c.id}`} className="font-medium text-zinc-900 hover:underline">{c.title || "(untitled)"}</Link>
+                  <span className="ml-2 text-[12px] text-zinc-400">r/{c.subreddit} · {fmt(c.lastActivityAt)}</span>
+                </div>
+                <a href={c.redditUrl} target="_blank" rel="noreferrer" className="text-[12px] text-zinc-500 underline-offset-2 hover:underline">Open on Reddit ↗</a>
+              </div>
+              <div className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+                <div className="min-w-0">
+                  <div className="mb-1 flex flex-wrap items-center gap-2 text-[12px]">
+                    <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Original poster</span>
+                    <span className="font-medium text-zinc-800">u/{c.op?.author ?? "?"}</span>
+                    <span className="text-zinc-400">{c.opMsgs.length} {c.opMsgs.length === 1 ? "message" : "messages"} · {c.messages.length - c.opMsgs.length} comments by others (not shown)</span>
+                  </div>
+                  <div className="space-y-2">
+                    {c.opMsgs.map((m, i) => (
+                      <blockquote key={i} className="whitespace-pre-wrap break-words rounded-md border-l-2 border-zinc-200 bg-white pl-3 text-[13px] leading-relaxed text-zinc-800">
+                        <span className="mr-1 text-[10px] uppercase tracking-wide text-zinc-400">{m.isOriginalPost ? "post" : "their comment"} · {fmt(m.postedAt)}</span>
+                        {m.content}
+                      </blockquote>
+                    ))}
+                    {c.opMsgs.length === 0 && <p className="text-[12px] text-zinc-400">No text stored for the original poster.</p>}
+                  </div>
+                  {(c.problemTheme || c.lead.treatment || c.lead.intent) && (
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                      <span className="uppercase tracking-wide text-zinc-400">Engine&apos;s read: </span>
+                      {c.problemTheme && <>problem “{c.problemTheme}”</>}
+                      {c.lead.treatment && <> · on {c.lead.treatment}</>}
+                      {c.lead.intent && <> · intent: {INTENT_LABEL[c.lead.intent] ?? c.lead.intent}</>}
+                    </p>
+                  )}
+                </div>
+                <div className="text-[12px]">
+                  {c.labels.some((l) => !l.fromOp) && (
+                    <p className="mb-2 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
+                      {c.labels.filter((l) => !l.fromOp).length === 1 ? "One label's proof" : "Some labels' proof"} is not in the poster&apos;s own words (from a commenter, or missing) — it does not describe this person.
+                    </p>
+                  )}
+                  <Labels
+                    conversationId={c.id}
+                    provider={c.analysisProvider ?? ""}
+                    labels={c.labels.map(({ tag, quote, verdict }) => ({ tag, quote, verdict }))}
+                    missed={c.missed}
+                  />
+                </div>
+              </div>
+            </section>
+          ))}
+          {rows.length === 0 && <div className="card px-3 py-8 text-center text-[13px] text-zinc-400">Nothing here{show === "todo" ? " — you have judged every label." : "."}</div>}
+        </div>
+
+        {pages > 1 && (
+          <div className="flex items-center justify-between text-[12px] text-zinc-500">
+            <span>Page {page} of {pages}</span>
+            <div className="flex gap-2">
+              {page > 1 && <Link href={qs({ page: String(page - 1) })} className={pill(false)}>← Previous</Link>}
+              {page < pages && <Link href={qs({ page: String(page + 1) })} className={pill(false)}>Next →</Link>}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const show: Show = (SHOW as readonly string[]).includes(searchParams.show ?? "") ? (searchParams.show as Show) : "todo";
   const role = searchParams.role === "OP" || searchParams.role === "COMMENTER" ? searchParams.role : undefined;
   const model = MODEL_FILTERS.includes(searchParams.model as SpeaksAbout | "PENDING") ? (searchParams.model as SpeaksAbout | "PENDING") : undefined;
-  const sub = searchParams.subreddit;
-  const page = Math.max(1, Number(searchParams.page ?? 1) || 1);
 
   const base: Prisma.VoiceWhereInput = {
-    conversation: { source: { not: "MOCK" }, lead: { isMock: false }, ...(sub ? { subreddit: sub } : {}) },
+    conversation: { ...REAL, ...(sub ? { subreddit: sub } : {}) },
     ...(role ? { role } : {}),
     ...(model === "PENDING" ? { gatedAt: null } : model ? { speaksAbout: model, gatedAt: { not: null } } : {}),
   };
@@ -47,7 +267,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
     ...(show === "todo" ? { review: null } : show === "reviewed" || show === "disagree" ? { review: { isNot: null } } : {}),
   };
 
-  const [voicesRaw, total, reviewedRows, todoCount, pendingModel, subredditRows] = await Promise.all([
+  const [voicesRaw, total, reviewedRows, todoCount, pendingModel] = await Promise.all([
     prisma.voice.findMany({
       where,
       include: { review: true, conversation: { select: { id: true, title: true, subreddit: true, redditUrl: true, lastActivityAt: true } } },
@@ -63,7 +283,6 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
     }),
     prisma.voice.count({ where: { ...base, review: null } }),
     prisma.voice.count({ where: { ...base, gatedAt: null } }),
-    prisma.conversation.groupBy({ by: ["subreddit"], where: { source: { not: "MOCK" }, lead: { isMock: false } } }),
   ]);
 
   const disagreeAll = show === "disagree" ? voicesRaw.filter((v) => v.review && v.review.modelSpeaksAbout && v.review.modelSpeaksAbout !== v.review.speaksAbout) : voicesRaw;
@@ -86,33 +305,29 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
   }
 
   const qs = (patch: Record<string, string | undefined>) => {
-    const p = new URLSearchParams();
+    const p = new URLSearchParams({ focus: "people" });
     const merged = { show: show === "todo" ? undefined : show, role, model, subreddit: sub, ...patch };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
-    const s = p.toString();
-    return `/audit${s ? `?${s}` : ""}`;
+    return `/audit?${p.toString()}`;
   };
-  const pill = (active: boolean) =>
-    `rounded-full border px-2.5 py-1 text-[12px] ${active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"}`;
-  const subreddits = subredditRows.map((r) => r.subreddit).sort();
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="max-w-2xl">
-          <h1 className="text-lg font-semibold">Audit the engine</h1>
-          <p className="text-[13px] text-zinc-500">
-            Every person the engine read — the original poster and each commenter — with exactly what they wrote and what the engine decided about them.
-            Read it yourself and tap your verdict. Your verdict overrides the model in Insights and becomes the test set every new classifier version has to pass.
-          </p>
-        </div>
+      <header className="max-w-3xl">
+        <h1 className="text-lg font-semibold">Audit the engine</h1>
+        <p className="text-[13px] text-zinc-500">
+          Before a struggle can be counted, the engine must decide whether the writer is describing <b>their own case</b> — advice to the poster, a story about a
+          relative, sellers and off-topic chatter must not enter the population numbers. Every person in every thread is listed here with their exact words; tap your verdict.
+          Yours overrides the model in Insights and becomes its test set.
+        </p>
       </header>
+      {tabs}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-3">
           <div className="text-[11px] uppercase tracking-wide text-zinc-400">People read</div>
           <div className="text-2xl font-semibold tabular-nums">{total}</div>
-          <div className="text-[12px] text-zinc-500">{pendingModel} still waiting for the model</div>
+          <div className="text-[12px] text-zinc-500">{pendingModel} not yet judged by the model (no credits)</div>
         </div>
         <div className="card p-3">
           <div className="text-[11px] uppercase tracking-wide text-zinc-400">Checked by you</div>
@@ -208,7 +423,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
                     </div>
                     <div className="space-y-2 text-[12px]">
                       <div>
-                        <div className="text-[10px] uppercase tracking-wide text-zinc-400">Engine says</div>
+                        <div className="text-[10px] uppercase tracking-wide text-zinc-400">Is this their own case? Engine says</div>
                         {modelDecided && v.speaksAbout ? (
                           <div>
                             <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${CHIP[v.speaksAbout]}`}>{SPEAKS_ABOUT_LABELS[v.speaksAbout].label}</span>
@@ -218,7 +433,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
                             <p className="mt-1 text-zinc-600">{v.gateWhy}</p>
                           </div>
                         ) : (
-                          <p className="text-zinc-500">Not decided yet{v.gateWhy ? ` — ${v.gateWhy}` : ""}. Counts only if you say so.</p>
+                          <p className="text-zinc-500">Not judged yet{v.gateWhy ? ` — ${v.gateWhy}` : " — the model has no credits"}. Counts only if you say so.</p>
                         )}
                       </div>
                       <div>

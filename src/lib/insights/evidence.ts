@@ -6,6 +6,14 @@ export interface StruggleEvidence {
 }
 
 const TAG_SET = new Set<string>(STRUGGLE_TAGS);
+
+export function parseEvidence(raw: unknown): StruggleEvidence[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is { tag: string; quote: string } => !!e && typeof e === "object" && typeof (e as { tag?: unknown }).tag === "string")
+    .map((e) => ({ tag: e.tag as StruggleTag, quote: String(e.quote ?? "") }));
+}
+
 export const MAX_STRUGGLE_TAGS = 3;
 
 function words(s: string): string[] {

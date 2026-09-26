@@ -184,6 +184,7 @@ model Conversation {
   snoozedUntil     DateTime?
   messages         Message[]
   voices           Voice[]
+  struggleReviews  StruggleReview[]
   actions          Action[]
   events           Event[]
   conversions      Conversion[]
@@ -238,6 +239,31 @@ model Voice {
   @@unique([conversationId, author])
   @@index([speaksAbout, inScope])
   @@index([needsReview])
+}
+
+enum StruggleVerdict {
+  RIGHT
+  WRONG
+  MISSED
+}
+
+/// A human's verdict on one struggle label of a conversation. RIGHT/WRONG judge a label the
+/// engine gave (its quote at review time is kept); MISSED adds a label the engine did not give.
+/// WRONG removes the label from Insights, MISSED adds it.
+model StruggleReview {
+  id             String          @id @default(cuid())
+  conversationId String
+  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tag            String
+  verdict        StruggleVerdict
+  quote          String          @default("")
+  modelProvider  String?
+  note           String          @default("")
+  reviewedBy     String          @default("dashboard")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([conversationId, tag])
 }
 
 /// A human's verdict on a voice. Overrides the model in Insights and is the golden set

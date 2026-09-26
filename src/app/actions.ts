@@ -9,8 +9,10 @@ import { qualifyConversation } from "@/lib/ai/analyze";
 import { setSetting } from "@/lib/settings";
 import { resumeOutbound } from "@/lib/health";
 import { importConversationFromText, importConversationFromUrl } from "@/lib/reddit/manualImport";
-import type { SpeaksAbout } from "@prisma/client";
+import type { SpeaksAbout, StruggleVerdict } from "@prisma/client";
 import { reviewVoice, clearReview, SPEAKS_ABOUT_LABELS } from "@/lib/voices/review";
+import { reviewLabel, clearLabelReview, isStruggleTag } from "@/lib/insights/labelReview";
+import { STRUGGLE_LABELS } from "@/lib/insights/taxonomy";
 
 const REDDIT_BLOCKED = /403|429|blocked|rate limited|forbidden/i;
 const REDDIT_BLOCKED_MSG = "Reddit refuses requests from this server — this runs from the local agent every 30 min instead.";
@@ -193,6 +195,28 @@ export async function clearVoiceReviewAction(voiceId: string) {
   revalidatePath("/audit");
   revalidatePath("/insights");
   return { message: "Your verdict removed — back to the model's decision." };
+}
+
+const LABEL_VERDICTS: StruggleVerdict[] = ["RIGHT", "WRONG", "MISSED"];
+
+export async function reviewLabelAction(conversationId: string, tag: string, verdict: StruggleVerdict) {
+  if (!isStruggleTag(tag)) throw new Error("Unknown struggle label");
+  if (!LABEL_VERDICTS.includes(verdict)) throw new Error("Unknown verdict");
+  await reviewLabel(conversationId, tag, verdict);
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  const name = STRUGGLE_LABELS[tag];
+  return {
+    message:
+      verdict === "RIGHT" ? `“${name}” confirmed — stays in Insights.` : verdict === "WRONG" ? `“${name}” removed from Insights for this thread.` : `“${name}” added to Insights for this thread.`,
+  };
+}
+
+export async function clearLabelReviewAction(conversationId: string, tag: string) {
+  await clearLabelReview(conversationId, tag);
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  return { message: "Your verdict removed — back to what the engine said." };
 }
 
 export async function runCycleNowAction() {
