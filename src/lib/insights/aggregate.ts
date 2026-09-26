@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { STRUGGLE_TAGS, STRUGGLE_LABELS, type StruggleTag } from "./taxonomy";
-import type { StruggleEvidence } from "./evidence";
+import { parseEvidence, type StruggleEvidence } from "./evidence";
+import { applyLabelReviews } from "./labelReview";
 import { effective, isCounted } from "@/lib/voices/review";
+
+export { parseEvidence };
 
 export interface SourceExample {
   title: string;
@@ -136,13 +139,6 @@ export function countTreatments(rows: InsightRow[]): { key: string; count: numbe
   return [...m.entries()].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
 }
 
-export function parseEvidence(raw: unknown): StruggleEvidence[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((e): e is { tag: string; quote: string } => !!e && typeof e === "object" && typeof (e as { tag?: unknown }).tag === "string")
-    .map((e) => ({ tag: e.tag as StruggleTag, quote: String(e.quote ?? "") }));
-}
-
 export function countBy(rows: InsightRow[], key: (r: InsightRow) => string): { key: string; count: number }[] {
   const m = new Map<string, number>();
   for (const r of rows) {
@@ -173,6 +169,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
       include: {
         lead: { select: { intent: true, hairConcern: true, treatment: true } },
         messages: { select: { postedAt: true, isOriginalPost: true } },
+        struggleReviews: { select: { tag: true, verdict: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -205,7 +202,10 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     excluded: judged.filter((v) => v.decided && !v.counted).length,
     pending: judged.filter((v) => !v.decided).length,
     humanChecked: judged.filter((v) => v.human).length,
+    labelsChecked: 0,
   };
+  // Human label verdicts override the engine: a label judged WRONG is dropped, a MISSED one added.
+  voices.labelsChecked = convos.reduce((n, c) => n + c.struggleReviews.length, 0);
   const rows: InsightRow[] = convos.map((c) => ({
     id: c.id,
     leadId: c.leadId,
@@ -217,9 +217,10 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     commentCount: c.messages.filter((m) => !m.isOriginalPost).length,
     analyzed: c.lastAnalyzedAt !== null,
     problemTheme: c.problemTheme,
-    struggleTags: c.struggleTags,
-    struggleEvidence: parseEvidence(c.struggleEvidence),
-    provider: c.analysisProvider ?? "",
+    ...(() => {
+      const r = applyLabelReviews(parseEvidence(c.struggleEvidence), c.struggleReviews);
+      return { struggleTags: r.tags, struggleEvidence: r.evidence, provider: r.human ? "human" : c.analysisProvider ?? "" };
+    })(),
     unmetNeed: c.unmetNeed,
     intent: c.lead.intent ?? "",
     hairConcern: c.lead.hairConcern ?? "",

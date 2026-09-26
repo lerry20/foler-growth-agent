@@ -175,7 +175,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
                 </div>
               </div>
               <p className="pulse-muted mt-2 text-[11px]">
-                {m.voices.humanChecked} verified by a human · <Link href="/audit" className="underline underline-offset-2">audit every decision →</Link>
+                {m.voices.labelsChecked} struggle labels and {m.voices.humanChecked} people verified by a human · <Link href="/audit" className="underline underline-offset-2">audit every decision →</Link>
               </p>
             </div>
             <div>
