@@ -185,6 +185,7 @@ model Conversation {
   messages         Message[]
   voices           Voice[]
   struggleReviews  StruggleReview[]
+  intentReview     IntentReview?
   actions          Action[]
   events           Event[]
   conversions      Conversion[]
@@ -249,13 +250,16 @@ enum StruggleVerdict {
 
 /// A human's verdict on one struggle label of a conversation. RIGHT/WRONG judge a label the
 /// engine gave (its quote at review time is kept); MISSED adds a label the engine did not give.
-/// WRONG removes the label from Insights, MISSED adds it.
+/// WRONG removes the label from Insights, MISSED adds it. `shouldBe` on a WRONG verdict says
+/// what the quote really shows: another struggle tag (added to Insights with the same quote)
+/// or NONE (no struggle at all).
 model StruggleReview {
   id             String          @id @default(cuid())
   conversationId String
   conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   tag            String
   verdict        StruggleVerdict
+  shouldBe       String?
   quote          String          @default("")
   modelProvider  String?
   note           String          @default("")
@@ -264,6 +268,20 @@ model StruggleReview {
   updatedAt      DateTime        @updatedAt
 
   @@unique([conversationId, tag])
+}
+
+/// A human's correction of the intent the engine read for a conversation. Overrides the
+/// model in Insights; the model's intent at review time is kept.
+model IntentReview {
+  id             String       @id @default(cuid())
+  conversationId String       @unique
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  intent         Intent
+  modelIntent    Intent?
+  note           String       @default("")
+  reviewedBy     String       @default("dashboard")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 /// A human's verdict on a voice. Overrides the model in Insights and is the golden set

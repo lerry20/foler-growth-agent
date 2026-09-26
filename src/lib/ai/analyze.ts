@@ -10,6 +10,7 @@ import { analyzeWithAnthropic } from "./anthropic";
 import { analyzeHeuristically } from "./heuristic";
 import { AnalysisSchema } from "./schema";
 import { validateStruggles } from "@/lib/insights/evidence";
+import { correctionsText } from "@/lib/insights/labelReview";
 import { verifyStruggles } from "@/lib/insights/verify";
 import type { Analysis, AnalysisResult } from "./types";
 import type { EventType, LeadStage, PermissionState } from "@prisma/client";
@@ -78,6 +79,15 @@ export async function qualifyConversation(
   };
 
   if (env.ANTHROPIC_API_KEY) {
+    const corrections = correctionsText(
+      await prisma.struggleReview.findMany({
+        where: { verdict: "WRONG", quote: { not: "" } },
+        orderBy: { updatedAt: "desc" },
+        take: 25,
+        select: { tag: true, verdict: true, shouldBe: true, quote: true, note: true },
+      }),
+    );
+    const system = buildSystemPrompt(kb, corrections);
     const userPrompt = () =>
       buildUserPrompt({
         subreddit: conversation.subreddit,
@@ -101,7 +111,7 @@ export async function qualifyConversation(
         previousResponses,
       });
     try {
-      const raw = await analyzeWithAnthropic(buildSystemPrompt(kb), userPrompt());
+      const raw = await analyzeWithAnthropic(system, userPrompt());
       analysis = AnalysisSchema.parse(raw);
       provider = "anthropic";
     } catch (err) {
@@ -116,7 +126,7 @@ export async function qualifyConversation(
       if (tooSimilar) {
         try {
           const raw = await analyzeWithAnthropic(
-            buildSystemPrompt(kb),
+            system,
             userPrompt() + "\nYour previous draft was too similar to a recent reply; write a substantively different one.",
           );
           analysis = AnalysisSchema.parse(raw);

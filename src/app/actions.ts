@@ -9,9 +9,10 @@ import { qualifyConversation } from "@/lib/ai/analyze";
 import { setSetting } from "@/lib/settings";
 import { resumeOutbound } from "@/lib/health";
 import { importConversationFromText, importConversationFromUrl } from "@/lib/reddit/manualImport";
-import type { SpeaksAbout, StruggleVerdict } from "@prisma/client";
+import type { Intent, SpeaksAbout, StruggleVerdict } from "@prisma/client";
 import { reviewVoice, clearReview, SPEAKS_ABOUT_LABELS } from "@/lib/voices/review";
-import { reviewLabel, clearLabelReview, isStruggleTag } from "@/lib/insights/labelReview";
+import { reviewLabel, clearLabelReview, isStruggleTag, noteLabel, reviewIntent, clearIntentReview, NO_STRUGGLE } from "@/lib/insights/labelReview";
+import { INTENT_LABEL, INTENTS } from "@/lib/insights/intent";
 import { STRUGGLE_LABELS } from "@/lib/insights/taxonomy";
 
 const REDDIT_BLOCKED = /403|429|blocked|rate limited|forbidden/i;
@@ -199,17 +200,47 @@ export async function clearVoiceReviewAction(voiceId: string) {
 
 const LABEL_VERDICTS: StruggleVerdict[] = ["RIGHT", "WRONG", "MISSED"];
 
-export async function reviewLabelAction(conversationId: string, tag: string, verdict: StruggleVerdict) {
+/** `shouldBe` (WRONG only): the struggle the quote really shows, or NONE for "no struggle here". */
+export async function reviewLabelAction(conversationId: string, tag: string, verdict: StruggleVerdict, shouldBe?: string | null) {
   if (!isStruggleTag(tag)) throw new Error("Unknown struggle label");
   if (!LABEL_VERDICTS.includes(verdict)) throw new Error("Unknown verdict");
-  await reviewLabel(conversationId, tag, verdict);
+  if (shouldBe && shouldBe !== NO_STRUGGLE && !isStruggleTag(shouldBe)) throw new Error("Unknown struggle label");
+  await reviewLabel(conversationId, tag, verdict, shouldBe);
   revalidatePath("/audit");
   revalidatePath("/insights");
   const name = STRUGGLE_LABELS[tag];
-  return {
-    message:
-      verdict === "RIGHT" ? `“${name}” confirmed — stays in Insights.` : verdict === "WRONG" ? `“${name}” removed from Insights for this thread.` : `“${name}” added to Insights for this thread.`,
-  };
+  const message =
+    verdict === "RIGHT"
+      ? `“${name}” confirmed — stays in Insights.`
+      : verdict === "MISSED"
+        ? `“${name}” added to Insights for this thread.`
+        : shouldBe && isStruggleTag(shouldBe)
+          ? `“${name}” → “${STRUGGLE_LABELS[shouldBe]}” in Insights; the mistake goes into the next classifier's examples.`
+          : shouldBe === NO_STRUGGLE
+            ? `“${name}” removed — no struggle counted for this thread; saved as a mistake for the next classifier.`
+            : `“${name}” removed from Insights — now say what it should be.`;
+  return { message };
+}
+
+export async function noteLabelAction(conversationId: string, tag: string, note: string) {
+  await noteLabel(conversationId, tag, note);
+  revalidatePath("/audit");
+  return { message: "Note saved with your verdict." };
+}
+
+export async function reviewIntentAction(conversationId: string, intent: Intent) {
+  if (!INTENTS.includes(intent)) throw new Error("Unknown intent");
+  await reviewIntent(conversationId, intent);
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  return { message: `Intent set to “${INTENT_LABEL[intent]}” — overrides the engine in Insights.` };
+}
+
+export async function clearIntentReviewAction(conversationId: string) {
+  await clearIntentReview(conversationId);
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  return { message: "Intent correction removed — back to what the engine said." };
 }
 
 export async function clearLabelReviewAction(conversationId: string, tag: string) {

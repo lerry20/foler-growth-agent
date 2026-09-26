@@ -7,7 +7,7 @@ import { STRUGGLE_LABELS } from "@/lib/insights/taxonomy";
 import { parseEvidence, quoteAppears } from "@/lib/insights/evidence";
 import { scoreLabels, isStruggleTag } from "@/lib/insights/labelReview";
 import { Verdict } from "./Verdict";
-import { Labels } from "./Labels";
+import { Labels, IntentReview } from "./Labels";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +20,6 @@ const LABEL_SHOW = ["todo", "reviewed", "nolabels", "all"] as const;
 type LabelShow = (typeof LABEL_SHOW)[number];
 const LABEL_SHOW_LABEL: Record<LabelShow, string> = { todo: "Labels you haven't judged", reviewed: "Judged by you", nolabels: "Engine found nothing", all: "Everything" };
 const MODEL_FILTERS: (SpeaksAbout | "PENDING")[] = ["OWN_CASE", "ADVICE_ONLY", "SOMEONE_ELSE", "VENDOR", "META", "UNCLEAR", "PENDING"];
-const INTENT_LABEL: Record<string, string> = {
-  MEASUREMENT: "wants to measure progress",
-  UNCERTAINTY: "unsure if treatment works",
-  TREATMENT_JOURNEY: "sharing their treatment journey",
-  HAIR_PROBLEM: "describing a hair problem",
-  PRODUCT_INTENT: "looking for a product",
-  OTHER: "other",
-};
 
 const CHIP: Record<SpeaksAbout, string> = {
   OWN_CASE: "bg-emerald-100 text-emerald-800",
@@ -84,7 +76,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
         problemTheme: true,
         unmetNeed: true,
         lead: { select: { intent: true, treatment: true, hairConcern: true } },
-        struggleReviews: { select: { tag: true, verdict: true } },
+        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true, note: true } },
+        intentReview: { select: { intent: true } },
         messages: { where: { direction: "INBOUND" }, select: { author: true, content: true, postedAt: true, isOriginalPost: true }, orderBy: { postedAt: "asc" } },
       },
       orderBy: { lastActivityAt: "desc" },
@@ -94,12 +87,17 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
       const op = c.messages.find((m) => m.isOriginalPost);
       const opMsgs = op ? c.messages.filter((m) => m.author === op.author) : [];
       const opText = opMsgs.map((m) => m.content).join("\n");
-      const byTag = new Map(c.struggleReviews.map((r) => [r.tag, r.verdict]));
+      const byTag = new Map(c.struggleReviews.map((r) => [r.tag, r]));
       const labels = parseEvidence(c.struggleEvidence)
         .filter((e) => isStruggleTag(e.tag))
-        .map((e) => ({ tag: e.tag, quote: e.quote, verdict: byTag.get(e.tag) ?? null, fromOp: e.quote ? quoteAppears(e.quote, opText) : false }));
+        .map((e) => {
+          const r = byTag.get(e.tag);
+          return { tag: e.tag, quote: e.quote, verdict: r?.verdict ?? null, shouldBe: r?.shouldBe ?? null, note: r?.note ?? "", fromOp: e.quote ? quoteAppears(e.quote, opText) : false };
+        });
       const missed = c.struggleReviews.filter((r) => r.verdict === "MISSED").map((r) => r.tag).filter(isStruggleTag);
-      return { ...c, op, opMsgs, labels, missed, unjudged: labels.filter((l) => !l.verdict).length };
+      // A Wrong label without "what it should be" is still an open question.
+      const unjudged = labels.filter((l) => !l.verdict || (l.verdict === "WRONG" && !l.shouldBe)).length;
+      return { ...c, op, opMsgs, labels, missed, unjudged };
     });
 
     const allReviews = convos.flatMap((c) => c.struggleReviews);
@@ -129,9 +127,18 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
           <h1 className="text-lg font-semibold">Audit the engine</h1>
           <p className="text-[13px] text-zinc-500">
             These are the exact labels behind the percentages on Insights. For every thread you see the person&apos;s own words, the struggle label the engine gave, and the
-            sentence it used as proof. Judge each label <b>Right</b> or <b>Wrong</b>, and add anything it <b>missed</b>. Wrong labels disappear from Insights immediately; every
-            verdict becomes a test case the next classifier version must pass.
+            sentence it used as proof. Judge each label <b>Right</b> or <b>Wrong</b> — and when it&apos;s wrong, say <b>what it should be</b> (another struggle, or none) — add anything
+            it <b>missed</b>, and correct the <b>intent</b> if you read the person differently.
           </p>
+          <details className="mt-1 text-[12px] text-zinc-500">
+            <summary className="cursor-pointer select-none font-medium text-zinc-700">What happens with every verdict you give</summary>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+              <li><b>Insights changes now.</b> Wrong → the label leaves the counts; “should be X” → X is counted with the same quote; missed → added; a corrected intent replaces the engine&apos;s. Insights marks these human-confirmed / corrected / added.</li>
+              <li><b>The engine&apos;s answer is kept</b> next to yours (its label, quote and whether it was Claude or keyword rules), so the score below is always engine vs. you.</li>
+              <li><b>Golden set.</b> The next classifier version is scored against your decisions (precision per label, and which labels it confuses) before it is allowed to replace the current one.</li>
+              <li><b>Worked examples.</b> Every “wrong → should be X” with its quote and your note is fed into the classifier prompt as a mistake to avoid.</li>
+            </ol>
+          </details>
         </header>
         {tabs}
 
@@ -144,7 +151,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
           <div className="card p-3" title="Of the engine's labels you judged, the share you agreed with.">
             <div className="text-[11px] uppercase tracking-wide text-zinc-400">Labels you agreed with</div>
             <div className="text-2xl font-semibold tabular-nums">{pct(score.precision)}</div>
-            <div className="text-[12px] text-zinc-500">{score.right} right · {score.wrong} wrong · {score.missed} missed by the engine</div>
+            <div className="text-[12px] text-zinc-500">{score.right} right · {score.wrong} wrong ({score.corrected} re-labelled) · {score.missed} missed by the engine</div>
           </div>
           <div className="card p-3" title="Labels produced by keyword rules while the model was unavailable. These are the weakest and the most worth checking.">
             <div className="text-[11px] uppercase tracking-wide text-zinc-400">From keyword rules, not a model</div>
@@ -165,6 +172,11 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
               <span key={t.tag}>
                 {i > 0 && " · "}
                 <b>{isStruggleTag(t.tag) ? STRUGGLE_LABELS[t.tag] : t.tag}</b> {t.right} right / {t.wrong} wrong{t.missed ? ` / ${t.missed} missed` : ""}
+                {Object.keys(t.shouldBe).length > 0 && (
+                  <span className="text-zinc-400">
+                    {" "}(really: {Object.entries(t.shouldBe).map(([k, n]) => `${k === "NONE" ? "no struggle" : isStruggleTag(k) ? STRUGGLE_LABELS[k] : k} ×${n}`).join(", ")})
+                  </span>
+                )}
               </span>
             ))}
           </div>
@@ -212,14 +224,12 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
                     ))}
                     {c.opMsgs.length === 0 && <p className="text-[12px] text-zinc-400">No text stored for the original poster.</p>}
                   </div>
-                  {(c.problemTheme || c.lead.treatment || c.lead.intent) && (
-                    <p className="mt-2 text-[11px] text-zinc-500">
-                      <span className="uppercase tracking-wide text-zinc-400">Engine&apos;s read: </span>
-                      {c.problemTheme && <>problem “{c.problemTheme}”</>}
-                      {c.lead.treatment && <> · on {c.lead.treatment}</>}
-                      {c.lead.intent && <> · intent: {INTENT_LABEL[c.lead.intent] ?? c.lead.intent}</>}
-                    </p>
-                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-zinc-500">
+                    <span className="uppercase tracking-wide text-zinc-400">Engine&apos;s read: </span>
+                    {c.problemTheme && <span>problem “{c.problemTheme}” ·</span>}
+                    {c.lead.treatment && <span>on {c.lead.treatment} ·</span>}
+                    <IntentReview conversationId={c.id} engine={c.lead.intent} human={c.intentReview?.intent ?? null} />
+                  </div>
                 </div>
                 <div className="text-[12px]">
                   {c.labels.some((l) => !l.fromOp) && (
@@ -230,7 +240,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Record
                   <Labels
                     conversationId={c.id}
                     provider={c.analysisProvider ?? ""}
-                    labels={c.labels.map(({ tag, quote, verdict }) => ({ tag, quote, verdict }))}
+                    labels={c.labels.map(({ tag, quote, verdict, shouldBe, note }) => ({ tag, quote, verdict, shouldBe, note }))}
                     missed={c.missed}
                   />
                 </div>

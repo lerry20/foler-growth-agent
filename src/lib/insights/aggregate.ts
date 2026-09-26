@@ -14,7 +14,7 @@ export interface SourceExample {
   /** The person's verbatim words that earned this tag; empty for legacy rows classified before evidence was required. */
   quote: string;
   provider: string;
-  human?: "confirmed" | "added";
+  human?: "confirmed" | "corrected" | "added";
 }
 
 export interface InsightRow {
@@ -174,7 +174,8 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
       include: {
         lead: { select: { intent: true, hairConcern: true, treatment: true } },
         messages: { select: { postedAt: true, isOriginalPost: true } },
-        struggleReviews: { select: { tag: true, verdict: true } },
+        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true } },
+        intentReview: { select: { intent: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -227,7 +228,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
       return { struggleTags: r.tags, struggleEvidence: r.evidence, provider: r.human ? "human" : c.analysisProvider ?? "" };
     })(),
     unmetNeed: c.unmetNeed,
-    intent: c.lead.intent ?? "",
+    intent: c.intentReview?.intent ?? c.lead.intent ?? "",
     hairConcern: c.lead.hairConcern ?? "",
     treatment: c.lead.treatment ?? "",
   }));

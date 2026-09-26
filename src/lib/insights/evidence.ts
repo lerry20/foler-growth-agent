@@ -3,8 +3,9 @@ import { STRUGGLE_TAGS, type StruggleTag } from "./taxonomy";
 export interface StruggleEvidence {
   tag: StruggleTag;
   quote: string;
-  /** Set only after human review: the label was confirmed, or added because the engine missed it. */
-  human?: "confirmed" | "added";
+  /** Set only after human review: the label was confirmed, corrected from a wrong engine label
+   *  (same quote), or added because the engine missed it. */
+  human?: "confirmed" | "corrected" | "added";
 }
 
 const TAG_SET = new Set<string>(STRUGGLE_TAGS);

@@ -99,7 +99,7 @@ export interface Rank {
   share: number;
   communities: { key: string; count: number }[];
   themes: { theme: string; count: number }[];
-  examples: { title: string; url: string; subreddit: string; quote: string; provider: string; human?: "confirmed" | "added" }[];
+  examples: { title: string; url: string; subreddit: string; quote: string; provider: string; human?: "confirmed" | "corrected" | "added" }[];
 }
 
 export function Ranked({ items, total }: { items: Rank[]; total: number }) {
@@ -145,7 +145,7 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                       )}
                       <div className="pulse-muted mt-0.5 truncate">
                         <a href={e.url} target="_blank" rel="noreferrer" className="src">{e.title}</a> · r/{e.subreddit}
-                        {e.human === "added" ? " · human-added" : e.human === "confirmed" ? " · human-confirmed" : e.provider === "heuristic" ? " · keyword rule" : ""}
+                        {e.human === "added" ? " · human-added" : e.human === "corrected" ? " · human-corrected (engine had it under another label)" : e.human === "confirmed" ? " · human-confirmed" : e.provider === "heuristic" ? " · keyword rule" : ""}
                       </div>
                     </li>
                   ))}
