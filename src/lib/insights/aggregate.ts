@@ -166,7 +166,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     ...(opts?.includeMock ? {} : { lead: { isMock: false }, source: { not: "MOCK" as const } }),
     ...(opts?.sinceDays ? { createdAt: { gte: new Date(Date.now() - opts.sinceDays * 864e5) } } : {}),
   };
-  const [convos, categories, communityConfigs] = await Promise.all([
+  const [convos, categories, communityConfigs, voiceRows] = await Promise.all([
     prisma.conversation.findMany({
       where,
       include: {
@@ -177,7 +177,20 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     }),
     prisma.searchCategory.findMany({ where: { enabled: true }, select: { name: true, terms: true } }),
     prisma.communityConfig.findMany({ where: { enabled: true }, select: { name: true } }),
+    prisma.voice.findMany({
+      where: { conversation: where },
+      select: { role: true, speaksAbout: true, inScope: true, gatedAt: true, needsReview: true },
+    }),
   ]);
+  const voices = {
+    total: voiceRows.length,
+    ops: voiceRows.filter((v) => v.role === "OP").length,
+    commenters: voiceRows.filter((v) => v.role === "COMMENTER").length,
+    ownCase: voiceRows.filter((v) => v.speaksAbout === "OWN_CASE" && v.inScope === true).length,
+    ownCaseCommenters: voiceRows.filter((v) => v.role === "COMMENTER" && v.speaksAbout === "OWN_CASE" && v.inScope === true).length,
+    excluded: voiceRows.filter((v) => v.gatedAt && !(v.speaksAbout === "OWN_CASE" && v.inScope === true) && !v.needsReview).length,
+    pending: voiceRows.filter((v) => !v.gatedAt || v.needsReview).length,
+  };
   const rows: InsightRow[] = convos.map((c) => ({
     id: c.id,
     leadId: c.leadId,
@@ -263,6 +276,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     confidence: totals.analyzed >= 100 ? "robust" : totals.analyzed >= 30 ? "emerging" : "early signal",
     includeMock: Boolean(opts?.includeMock),
     sinceDays: opts?.sinceDays ?? null,
+    voices,
   } as const;
 
   return {

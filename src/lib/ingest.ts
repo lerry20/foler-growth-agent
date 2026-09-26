@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getSetting, SETTING_KEYS } from "@/lib/settings";
 import { env } from "@/lib/env";
+import { syncVoices } from "@/lib/voices/sync";
 import type { RedditSource } from "@prisma/client";
 import type { RedditPost as ProviderPost, RedditComment as ProviderComment } from "@/lib/reddit/types";
 
@@ -87,6 +88,7 @@ export async function ingestConversation(
 
   if (created || newMessageCount > 0) {
     await prisma.conversation.update({ where: { id: conversation.id }, data: { lastActivityAt: new Date() } });
+    await syncVoices(conversation.id);
   }
   if (newLead) {
     await prisma.event.create({ data: { type: "LEAD_DISCOVERED", leadId: lead.id, conversationId: conversation.id, payload: { source } } });

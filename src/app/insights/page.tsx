@@ -156,6 +156,26 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
               </ol>
             </div>
             <div>
+              <div className="pulse-eyebrow mb-2">Who counts as a person</div>
+              <p className="pulse-muted text-[12px]">
+                Every author in a thread — the original poster and each commenter — is read separately. Only people describing <i>their own</i> case are counted; advice to others, questions about someone else, sellers and off-topic are excluded. Anything unclear waits for a human, never enters the numbers.
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-[18px] font-semibold tabular-nums">{m.voices.total}</div>
+                  <div className="pulse-muted text-[11px]">people read · {m.voices.ops} posters · {m.voices.commenters} commenters</div>
+                </div>
+                <div>
+                  <div className="text-[18px] font-semibold tabular-nums">{m.voices.ownCase}</div>
+                  <div className="pulse-muted text-[11px]">describe their own case · {m.voices.ownCaseCommenters} from comments</div>
+                </div>
+                <div>
+                  <div className="text-[18px] font-semibold tabular-nums">{m.voices.pending}</div>
+                  <div className="pulse-muted text-[11px]">awaiting judgement · {m.voices.excluded} excluded</div>
+                </div>
+              </div>
+            </div>
+            <div>
               <div className="pulse-eyebrow mb-2">Source pool</div>
               <Bars rows={m.sources.map((s) => ({ key: `r/${s.key}`, count: s.count }))} unit={(n) => `${n} conv.`} />
               <div className="pulse-muted mt-2 text-[12px]">Monitored: {m.monitoredCommunities.map((c) => `r/${c}`).join(", ")}</div>

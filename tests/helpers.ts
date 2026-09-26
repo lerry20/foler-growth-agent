@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 export async function resetDb() {
   await prisma.generatedResponse.deleteMany();
   await prisma.event.deleteMany();
+  await prisma.voice.deleteMany();
   await prisma.message.deleteMany();
   await prisma.action.deleteMany();
   await prisma.conversion.deleteMany();

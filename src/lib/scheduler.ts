@@ -2,6 +2,7 @@ import { refreshAll } from "@/lib/monitoring";
 import { runDiscovery, type DiscoveryResult } from "@/lib/discovery";
 import { generateActionsForCandidates } from "@/lib/actions";
 import { backfillInsights } from "@/lib/insights/backfill";
+import { gateVoices, type GateRunResult } from "@/lib/voices/sync";
 import { setSetting } from "@/lib/settings";
 
 export interface CycleResult {
@@ -10,6 +11,7 @@ export interface CycleResult {
   monitoring: { refreshed: number; errors: string[]; manual: number } | null;
   actionsGenerated: number;
   insightsBackfilled: number;
+  voices: GateRunResult | null;
   errors: string[];
   durationMs: number;
 }
@@ -22,7 +24,7 @@ export async function runScheduledCycle(opts?: {
   refreshLimit?: number;
 }): Promise<CycleResult> {
   if (g.__folerCycleRunning) {
-    return { skipped: true, discovery: null, monitoring: null, actionsGenerated: 0, insightsBackfilled: 0, errors: [], durationMs: 0 };
+    return { skipped: true, discovery: null, monitoring: null, actionsGenerated: 0, insightsBackfilled: 0, voices: null, errors: [], durationMs: 0 };
   }
   g.__folerCycleRunning = true;
   const started = Date.now();
@@ -32,6 +34,7 @@ export async function runScheduledCycle(opts?: {
     monitoring: null,
     actionsGenerated: 0,
     insightsBackfilled: 0,
+    voices: null,
     errors: [],
     durationMs: 0,
   };
@@ -60,6 +63,11 @@ export async function runScheduledCycle(opts?: {
       result.insightsBackfilled = await backfillInsights({ limit: 10 });
     } catch (err) {
       result.errors.push(`insights: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    try {
+      result.voices = await gateVoices({ limit: 60 });
+    } catch (err) {
+      result.errors.push(`voices: ${err instanceof Error ? err.message : String(err)}`);
     }
     result.durationMs = Date.now() - started;
     return result;
