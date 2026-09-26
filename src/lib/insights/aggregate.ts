@@ -174,7 +174,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
       include: {
         lead: { select: { intent: true, hairConcern: true, treatment: true } },
         messages: { select: { postedAt: true, isOriginalPost: true } },
-        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true } },
+        struggleReviews: { select: { tag: true, verdict: true, shouldBe: true, quote: true } },
         intentReview: { select: { intent: true } },
       },
       orderBy: { createdAt: "desc" },
