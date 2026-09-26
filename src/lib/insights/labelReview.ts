@@ -18,10 +18,12 @@ export function applyLabelReviews(
   reviews: LabelReview[],
 ): { tags: StruggleTag[]; evidence: StruggleEvidence[]; human: boolean } {
   const byTag = new Map(reviews.map((r) => [r.tag, r.verdict]));
-  const kept = evidence.filter((e) => byTag.get(e.tag) !== "WRONG");
+  const kept: StruggleEvidence[] = evidence
+    .filter((e) => byTag.get(e.tag) !== "WRONG")
+    .map((e) => (byTag.get(e.tag) === "RIGHT" ? { ...e, human: "confirmed" } : e));
   const added: StruggleEvidence[] = reviews
     .filter((r) => r.verdict === "MISSED" && isStruggleTag(r.tag) && !kept.some((e) => e.tag === r.tag))
-    .map((r) => ({ tag: r.tag as StruggleTag, quote: "" }));
+    .map((r) => ({ tag: r.tag as StruggleTag, quote: "", human: "added" }));
   const all = [...kept, ...added];
   return { tags: all.map((e) => e.tag), evidence: all, human: reviews.length > 0 };
 }

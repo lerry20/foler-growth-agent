@@ -26,7 +26,8 @@ describe("applyLabelReviews", () => {
       { tag: "EMOTIONAL_DISTRESS", verdict: "MISSED" },
     ]);
     expect(r.tags).toEqual(["COST", "EMOTIONAL_DISTRESS"]);
-    expect(r.evidence.find((e) => e.tag === "COST")?.quote).toBe("can't afford dut");
+    expect(r.evidence.find((e) => e.tag === "COST")).toEqual({ tag: "COST", quote: "can't afford dut", human: "confirmed" });
+    expect(r.evidence.find((e) => e.tag === "EMOTIONAL_DISTRESS")).toEqual({ tag: "EMOTIONAL_DISTRESS", quote: "", human: "added" });
     expect(r.human).toBe(true);
   });
 
@@ -95,7 +96,8 @@ describe("label review in the database", () => {
 
     const after = await computeInsights();
     expect(after.problems.map((p) => p.tag).sort()).toEqual(["COST", "EMOTIONAL_DISTRESS"]);
-    expect(after.problems.find((p) => p.tag === "COST")?.examples[0]).toMatchObject({ quote: "cannot afford the brand name", provider: "human" });
+    expect(after.problems.find((p) => p.tag === "COST")?.examples[0]).toMatchObject({ quote: "cannot afford the brand name", provider: "human", human: "confirmed" });
+    expect(after.problems.find((p) => p.tag === "EMOTIONAL_DISTRESS")?.examples[0]).toMatchObject({ quote: "", human: "added" });
     expect(after.methodology.voices.labelsChecked).toBe(3);
 
     // Changing your mind overwrites, never duplicates.

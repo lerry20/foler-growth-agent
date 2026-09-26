@@ -99,7 +99,7 @@ export interface Rank {
   share: number;
   communities: { key: string; count: number }[];
   themes: { theme: string; count: number }[];
-  examples: { title: string; url: string; subreddit: string; quote: string; provider: string }[];
+  examples: { title: string; url: string; subreddit: string; quote: string; provider: string; human?: "confirmed" | "added" }[];
 }
 
 export function Ranked({ items, total }: { items: Rank[]; total: number }) {
@@ -138,12 +138,14 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                     <li key={j} className="border-l pl-2.5" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
                       {e.quote ? (
                         <div className="pulse-body italic">“{e.quote}”</div>
+                      ) : e.human === "added" ? (
+                        <div className="pulse-muted italic">added by a human reviewer — the engine missed it</div>
                       ) : (
                         <div className="pulse-muted italic">no quote recorded — tagged before evidence was required</div>
                       )}
                       <div className="pulse-muted mt-0.5 truncate">
                         <a href={e.url} target="_blank" rel="noreferrer" className="src">{e.title}</a> · r/{e.subreddit}
-                        {e.provider === "heuristic" ? " · keyword rule" : ""}
+                        {e.human === "added" ? " · human-added" : e.human === "confirmed" ? " · human-confirmed" : e.provider === "heuristic" ? " · keyword rule" : ""}
                       </div>
                     </li>
                   ))}
