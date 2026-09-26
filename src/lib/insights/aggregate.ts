@@ -20,6 +20,8 @@ export interface SourceExample {
 export interface InsightRow {
   id: string;
   leadId: string;
+  /** Original poster (the thread) or one commenter who describes their own case. */
+  role: "OP" | "COMMENTER";
   subreddit: string;
   title: string;
   url: string;
@@ -184,11 +186,18 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     prisma.voice.findMany({
       where: { conversation: where },
       select: {
+        id: true,
+        conversationId: true,
+        author: true,
         role: true,
         speaksAbout: true,
         inScope: true,
         gatedAt: true,
         needsReview: true,
+        struggleEvidence: true,
+        labelProvider: true,
+        labeledAt: true,
+        createdAt: true,
         review: { select: { speaksAbout: true, inScope: true } },
       },
     }),
@@ -197,7 +206,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
   const judged = voiceRows.map((v) => {
     const e = effective(v);
     const decided = e.source === "human" || (v.gatedAt !== null && !v.needsReview);
-    return { role: v.role, decided, counted: decided && isCounted(e), human: e.source === "human" };
+    return { ...v, decided, counted: decided && isCounted(e), human: e.source === "human" };
   });
   const voices = {
     total: judged.length,
@@ -209,12 +218,15 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     pending: judged.filter((v) => !v.decided).length,
     humanChecked: judged.filter((v) => v.human).length,
     labelsChecked: 0,
+    /** Counted commenters whose own words have been read for struggles. */
+    commentersLabeled: judged.filter((v) => v.role === "COMMENTER" && v.counted && v.labeledAt !== null).length,
   };
   // Human label verdicts override the engine: a label judged WRONG is dropped, a MISSED one added.
   voices.labelsChecked = convos.reduce((n, c) => n + c.struggleReviews.length, 0);
-  const rows: InsightRow[] = convos.map((c) => ({
+  const opRows: InsightRow[] = convos.map((c) => ({
     id: c.id,
     leadId: c.leadId,
+    role: "OP",
     subreddit: c.subreddit,
     title: c.title,
     url: c.redditUrl,
@@ -232,12 +244,46 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     hairConcern: c.lead.hairConcern ?? "",
     treatment: c.lead.treatment ?? "",
   }));
+  // Commenters who describe their own case are people too: one row each, labelled from their own words.
+  const byConv = new Map(convos.map((c) => [c.id, c]));
+  const commenterRows: InsightRow[] = judged
+    .filter((v) => v.role === "COMMENTER" && v.counted && v.labeledAt !== null)
+    .flatMap((v) => {
+      const c = byConv.get(v.conversationId);
+      if (!c) return [];
+      const evidence = parseEvidence(v.struggleEvidence);
+      return [
+        {
+          id: v.id,
+          leadId: `voice:${v.id}`,
+          role: "COMMENTER" as const,
+          subreddit: c.subreddit,
+          title: `${c.title} — comment by u/${v.author}`,
+          url: c.redditUrl,
+          createdAt: v.createdAt,
+          postedAt: c.messages.find((m) => m.isOriginalPost)?.postedAt ?? c.createdAt,
+          commentCount: 0,
+          analyzed: true,
+          problemTheme: "",
+          struggleTags: evidence.map((e) => e.tag),
+          struggleEvidence: evidence,
+          provider: v.labelProvider ?? "",
+          unmetNeed: "",
+          intent: "",
+          hairConcern: "",
+          treatment: "",
+        },
+      ];
+    });
+  const rows: InsightRow[] = [...opRows, ...commenterRows];
 
   const totals = {
-    conversations: rows.length,
+    conversations: opRows.length,
     people: new Set(rows.map((r) => r.leadId)).size,
     communities: new Set(rows.map((r) => r.subreddit)).size,
+    /** People whose words were read for struggles: analyzed threads (their OP) + labelled commenters. */
     analyzed: rows.filter((r) => r.analyzed).length,
+    analyzedCommenters: commenterRows.length,
   };
 
   const struggles = groupStruggles(rows);
@@ -252,7 +298,7 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
   }));
 
   const weekMap = new Map<string, { conversations: number; struggles: Map<string, number> }>();
-  for (const r of rows) {
+  for (const r of opRows) {
     const w = isoWeek(r.postedAt);
     const e = weekMap.get(w) ?? { conversations: 0, struggles: new Map<string, number>() };
     e.conversations++;
@@ -268,23 +314,23 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
       topStruggle: [...e.struggles.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "",
     }));
 
-  const dates = rows.map((r) => r.postedAt.getTime());
+  const dates = opRows.map((r) => r.postedAt.getTime());
   const now = Date.now();
   const ageDays = (r: InsightRow) => (now - r.postedAt.getTime()) / 864e5;
   const recency = [
-    { label: "Last 7 days", count: rows.filter((r) => ageDays(r) <= 7).length },
-    { label: "8–30 days", count: rows.filter((r) => ageDays(r) > 7 && ageDays(r) <= 30).length },
-    { label: "31–90 days", count: rows.filter((r) => ageDays(r) > 30 && ageDays(r) <= 90).length },
-    { label: "Older", count: rows.filter((r) => ageDays(r) > 90).length },
+    { label: "Last 7 days", count: opRows.filter((r) => ageDays(r) <= 7).length },
+    { label: "8–30 days", count: opRows.filter((r) => ageDays(r) > 7 && ageDays(r) <= 30).length },
+    { label: "31–90 days", count: opRows.filter((r) => ageDays(r) > 30 && ageDays(r) <= 90).length },
+    { label: "Older", count: opRows.filter((r) => ageDays(r) > 90).length },
   ];
   const tagged = rows.filter((r) => r.struggleTags.length).length;
   const methodology = {
     monitoredCommunities: communityConfigs.map((c) => c.name),
     searchCategories: categories.map((c) => ({ name: c.name, terms: c.terms })),
     searchTerms: categories.reduce((n, c) => n + c.terms.length, 0),
-    sources: countBy(rows, (r) => r.subreddit),
-    posts: rows.length,
-    comments: rows.reduce((n, r) => n + r.commentCount, 0),
+    sources: countBy(opRows, (r) => r.subreddit),
+    posts: opRows.length,
+    comments: opRows.reduce((n, r) => n + r.commentCount, 0),
     scanWindowDays: 90,
     recency,
     medianAgeDays: dates.length ? Math.round((now - [...dates].sort((a, b) => a - b)[Math.floor(dates.length / 2)]) / 864e5) : null,
@@ -307,10 +353,10 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     problems: groupProblems(rows),
     themes: groupThemes(rows),
     struggles,
-    intents: countBy(rows, (r) => r.intent),
-    hairConcerns: countBy(rows, (r) => r.hairConcern),
+    intents: countBy(opRows, (r) => r.intent),
+    hairConcerns: countBy(opRows, (r) => r.hairConcern),
     treatments,
-    communities: countBy(rows, (r) => r.subreddit),
+    communities: countBy(opRows, (r) => r.subreddit),
     treatmentByStruggle,
     unmetNeeds: rows.filter((r) => r.unmetNeed.trim()).slice(0, 20).map((r) => ({ text: r.unmetNeed, subreddit: r.subreddit, url: r.url })),
     weekly,

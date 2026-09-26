@@ -3,6 +3,7 @@ import { runDiscovery, type DiscoveryResult } from "@/lib/discovery";
 import { generateActionsForCandidates } from "@/lib/actions";
 import { backfillInsights } from "@/lib/insights/backfill";
 import { gateVoices, type GateRunResult } from "@/lib/voices/sync";
+import { labelVoices, type LabelRunResult } from "@/lib/voices/struggles";
 import { setSetting } from "@/lib/settings";
 
 export interface CycleResult {
@@ -12,6 +13,7 @@ export interface CycleResult {
   actionsGenerated: number;
   insightsBackfilled: number;
   voices: GateRunResult | null;
+  voiceLabels: LabelRunResult | null;
   errors: string[];
   durationMs: number;
 }
@@ -24,7 +26,7 @@ export async function runScheduledCycle(opts?: {
   refreshLimit?: number;
 }): Promise<CycleResult> {
   if (g.__folerCycleRunning) {
-    return { skipped: true, discovery: null, monitoring: null, actionsGenerated: 0, insightsBackfilled: 0, voices: null, errors: [], durationMs: 0 };
+    return { skipped: true, discovery: null, monitoring: null, actionsGenerated: 0, insightsBackfilled: 0, voices: null, voiceLabels: null, errors: [], durationMs: 0 };
   }
   g.__folerCycleRunning = true;
   const started = Date.now();
@@ -35,6 +37,7 @@ export async function runScheduledCycle(opts?: {
     actionsGenerated: 0,
     insightsBackfilled: 0,
     voices: null,
+    voiceLabels: null,
     errors: [],
     durationMs: 0,
   };
@@ -68,6 +71,11 @@ export async function runScheduledCycle(opts?: {
       result.voices = await gateVoices({ limit: 60 });
     } catch (err) {
       result.errors.push(`voices: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    try {
+      result.voiceLabels = await labelVoices({ limit: 40 });
+    } catch (err) {
+      result.errors.push(`voice labels: ${err instanceof Error ? err.message : String(err)}`);
     }
     result.durationMs = Date.now() - started;
     return result;

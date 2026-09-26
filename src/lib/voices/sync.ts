@@ -51,6 +51,9 @@ export async function syncVoices(conversationId: string): Promise<{ created: num
         gateProvider: null,
         gatedAt: null,
         needsReview: false,
+        struggleEvidence: [],
+        labelProvider: null,
+        labeledAt: null,
       },
     });
     changed++;
