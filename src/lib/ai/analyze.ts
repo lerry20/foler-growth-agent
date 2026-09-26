@@ -150,6 +150,7 @@ export async function qualifyConversation(
   const judged = await verifyStruggles(struggles.evidence);
   analysis.struggle_tags = judged.kept.map((e) => e.tag);
   analysis.struggle_evidence = judged.kept;
+  analysis.struggle_dropped = [...struggles.dropped, ...judged.dropped];
 
   const breakdown = normalizeBreakdown({
     problemRelevance: analysis.scores.problem_relevance,

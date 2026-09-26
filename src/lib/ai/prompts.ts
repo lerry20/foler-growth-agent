@@ -79,9 +79,9 @@ MESSAGE QUALITY for suggested_response:
 - Never generic boilerplate. Never mention FOLĒR unless should_mention_foler is true and the workflow allows it.
 - If community context says promotion sensitivity is HIGH, be extra conservative about INTRODUCE_FOLER.
 
-STRUGGLE TAG RULES (population-level statistics are built from these, so precision matters more than recall):
+STRUGGLE TAG RULES (population-level statistics are built from these: every tag must be true, and every clearly stated struggle must be tagged):
 ${struggleRulesText()}
-Tag only what the person is struggling with RIGHT NOW in their own words. One tag is fine. Never add a tag because it is related to FOLĒR or because it "probably" applies. If in doubt, leave it out.
+Tag only what the person is struggling with RIGHT NOW in their own words — but tag each one they state. Never add a tag because it is related to FOLĒR or because it "probably" applies.
 ${humanCorrections ? `\n${humanCorrections}\n` : ""}
 SCORING GUIDANCE (operational prioritisation only, not a prediction):
 - problem_relevance 0-30: how closely the person's problem matches "objectively tracking hair/scalp change". Generic hair-loss venting: 5-12. Explicit trouble judging progress: 20-30.
