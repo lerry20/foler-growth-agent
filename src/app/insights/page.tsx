@@ -174,6 +174,9 @@ export default async function InsightsPage({ searchParams }: { searchParams: { m
                   <div className="pulse-muted text-[11px]">awaiting judgement · {m.voices.excluded} excluded</div>
                 </div>
               </div>
+              <p className="pulse-muted mt-2 text-[11px]">
+                {m.voices.humanChecked} verified by a human · <Link href="/audit" className="underline underline-offset-2">audit every decision →</Link>
+              </p>
             </div>
             <div>
               <div className="pulse-eyebrow mb-2">Source pool</div>
