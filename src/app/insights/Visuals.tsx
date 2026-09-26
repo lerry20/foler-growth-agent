@@ -106,7 +106,9 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
   if (!items.length) return <div className="pulse-muted text-[13px]">No classified conversations yet.</div>;
   return (
     <ol className="m-0 list-none space-y-4 p-0">
-      {items.map((p, i) => (
+      {items.map((p, i) => {
+        const sample = p.examples.find((e) => e.quote)?.quote;
+        return (
         <li key={p.label}>
           <details className="group">
             <summary>
@@ -120,7 +122,7 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
                 <div className="pulse-fill" data-tone={i === 0 ? "warn" : i < 3 ? undefined : "dim"} style={{ width: `${p.share}%`, transitionDelay: `${i * 70}ms` }} />
               </div>
               <div className="pulse-muted ml-10 mt-1.5 flex gap-3 text-[11px]">
-                <span className="truncate">{p.themes.slice(0, 2).map((t) => t.theme).join(" · ")}</span>
+                <span className="truncate italic">{sample ? `“${sample}”` : ""}</span>
                 <span className="ml-auto shrink-0 opacity-60 group-open:hidden">sources ▸</span>
               </div>
             </summary>
@@ -128,7 +130,7 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
               <div className="min-w-0">
                 <div className="pulse-eyebrow">Where</div>
                 <div className="pulse-body mt-1 break-words">{p.communities.map((c) => `r/${c.key} · ${c.count}`).join("   ")}</div>
-                <div className="pulse-eyebrow mt-3">How they say it</div>
+                <div className="pulse-eyebrow mt-3">Thread themes among these people</div>
                 <ul className="pulse-body mt-1 m-0 list-none space-y-0.5 p-0">{p.themes.map((t) => <li key={t.theme}>{t.theme} <span className="pulse-muted">×{t.count}</span></li>)}</ul>
               </div>
               <div className="min-w-0">
@@ -156,7 +158,8 @@ export function Ranked({ items, total }: { items: Rank[]; total: number }) {
             </div>
           </details>
         </li>
-      ))}
+        );
+      })}
     </ol>
   );
 }

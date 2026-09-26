@@ -1,6 +1,10 @@
 import { env } from "@/lib/env";
 import { computeInsights } from "./aggregate";
 import { setSetting, getSetting } from "@/lib/settings";
+import { STRUGGLE_LABELS, STRUGGLE_RULES, STRUGGLE_TAGS } from "./taxonomy";
+
+const labelGlossary = () =>
+  STRUGGLE_TAGS.map((t) => `- "${STRUGGLE_LABELS[t]}": ${STRUGGLE_RULES[t]}`).join("\n");
 
 export async function generateSynthesis(): Promise<string> {
   if (!env.ANTHROPIC_API_KEY) return "Synthesis unavailable: no ANTHROPIC_API_KEY";
@@ -21,7 +25,7 @@ export async function generateSynthesis(): Promise<string> {
       system: "You are a health-population analyst.",
       messages: [{
         role: "user",
-        content: `From these aggregated Reddit signals write a founder-facing brief in markdown: 1) the 5 biggest problems people are trying to solve, 2) what they struggle with most and why, 3) gaps nobody is serving, 4) 3 concrete opportunities for tools/products that would help — be honest about sample size.\n\n${input}`,
+        content: `From these aggregated Reddit signals write a founder-facing brief in markdown: 1) the 5 biggest problems people are trying to solve, 2) what they struggle with most and why, 3) gaps nobody is serving, 4) 3 concrete opportunities for tools/products that would help — be honest about sample size.\n\nEach struggle label has a precise meaning; describe it by that meaning, never by a neighbouring one (e.g. "No / disappointing results" is a visible bad outcome, NOT "can't tell if it's working"):\n${labelGlossary()}\n\n${input}`,
       }],
     }),
   });
