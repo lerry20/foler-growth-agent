@@ -14,7 +14,7 @@ export const STRUGGLE_LABELS: Record<StruggleTag,string> = {
   EMOTIONAL_DISTRESS: "Emotional distress",
   CONSISTENCY_ADHERENCE: "Staying consistent",
   DIAGNOSIS_UNCLEAR: "Unclear diagnosis / cause",
-  TIME_TO_RESULTS: "Results take too long",
+  TIME_TO_RESULTS: "No / disappointing results",
   PRODUCT_CHOICE: "Which product / protocol to choose",
   SOCIAL_STIGMA: "Social stigma",
   OTHER: "Other",
@@ -23,11 +23,11 @@ export const STRUGGLE_LABELS: Record<StruggleTag,string> = {
 /** What each tag means, with explicit exclusions. Shared by every classifier prompt. */
 export const STRUGGLE_RULES: Record<StruggleTag, string> = {
   UNCERTAINTY_IF_WORKING:
-    "The person is ALREADY on a treatment and explicitly says they cannot tell whether it is having an effect (\"hard to know if fin is doing anything\", \"6 months in, not sure it's working\", \"can't tell if these are new hairs\"). NOT for: deciding whether to start; asking what to add or switch to; asking whether pausing will undo progress; reporting a clear outcome either way (\"great results\", \"zero results\", \"kept losing ground\" = known outcome, not uncertainty); side-effect questions; general worry about the future.",
+    "The person is ALREADY on a treatment and explicitly says they cannot tell whether it is having an effect (\"hard to know if fin is doing anything\", \"6 months in, not sure it's working\", \"can't tell if these are new hairs\"). NOT for: deciding whether to start; asking what to add or switch to; asking whether pausing will undo progress; reporting a clear outcome either way (\"great results\", \"zero results\", \"kept losing ground\" = known outcome, not uncertainty; a bad outcome is TIME_TO_RESULTS); side-effect questions; general worry about the future.",
   MEASUREMENT_TRACKING:
     "They explicitly struggle with HOW to judge change: photos, lighting, hair counts, comparing before/after, biomarkers vs visible result. Requires a mention of measuring/comparing/tracking, not merely being unsure.",
   SIDE_EFFECTS:
-    "They are CURRENTLY experiencing, or refusing/hesitating on a treatment because of, an adverse effect (libido, ED, brain fog, shedding they attribute to the drug, scalp irritation, hypertrichosis). NEVER when they say they have none (\"no side effects\", \"didn't experience any\", \"thankfully none\"). Not for the hair loss itself, and not for side effects of a drug they stopped years ago.",
+    "They are CURRENTLY experiencing, or refusing/hesitating on a treatment because of, an adverse effect (libido, ED, brain fog, shedding they attribute to the drug, scalp irritation, hypertrichosis). NEVER when they say they have none (\"no side effects\", \"didn't experience any\", \"thankfully none\", \"going smooth\"), when they list POSSIBLE risks they do not have (\"there's a chance of sexual dysfunction\"), or when they ask others about theirs (\"did you notice side effects?\"). Not for the hair loss itself, and not for side effects of a drug they stopped years ago.",
   COST:
     "Price, affordability, insurance or budget is part of the problem.",
   ACCESS_TO_CARE:
@@ -35,15 +35,15 @@ export const STRUGGLE_RULES: Record<StruggleTag, string> = {
   CONFLICTING_INFO:
     "They cite contradictory advice/studies/anecdotes and don't know what to believe. Not for ordinary 'which is better' questions without conflicting sources.",
   EMOTIONAL_DISTRESS:
-    "Explicit anxiety, shame, hopelessness, depression, panic, 'ruining my life', crying, obsessive thinking. Not for ordinary mild worry, being 'concerned', or wanting reassurance.",
+    "Explicit anxiety, shame, hopelessness, depression, panic, 'ruining my life', crying, obsessive thinking, felt by this person now. Not for ordinary mild worry, being 'concerned', or wanting reassurance; not for stress/anxiety named as a CAUSE of the hair loss (\"he thinks it is due to stress and anxiety\"), a personality trait (\"I'm generally an anxious person\"), someone else's words, or a listed drug risk (\"severe depression\" as a possible side effect).",
   CONSISTENCY_ADHERENCE:
     "Trouble keeping up the routine: forgetting doses, hating daily topicals, stopping and restarting, lifetime-commitment fatigue.",
   DIAGNOSIS_UNCLEAR:
     "They don't know WHAT is causing the hair loss (TE vs AGA, thyroid, stress, PCOS, 'is this normal shedding?') or whether it is hair loss at all.",
   TIME_TO_RESULTS:
-    "They ask how long results take, or are frustrated it is taking long / worry it's too early or too late. Requires an explicit timeline concern; not the same as not knowing if it works, and not for acknowledging 'it's still early'.",
+    "They are on (or finished) a treatment and the RESULTS are the problem: none or too few (\"a year on min, didn't experience any results\"), worse than hoped (\"still getting thinner on fin\", \"density worse than baseline\"), a shed that won't resolve (\"9 weeks in, no sign of the shed slowing\"), or they need expectations set (\"what should I expect\", \"how long until I see something\"). The outcome is visible to them and disappointing, or they ask what outcome/timeline to expect. NOT the same as UNCERTAINTY_IF_WORKING (there they cannot tell either way); not for acknowledging 'it's still early' without concern; not for happy progress reports.",
   PRODUCT_CHOICE:
-    "Choosing between treatments, doses, forms, brands, or what to add/stack. Includes 'should I start X?' and 'topical vs oral?'.",
+    "THIS person is choosing between treatments, doses, forms, brands, how to layer/use them, or what to add/stack/switch to. Includes 'should I start X?', 'topical vs oral?', 'what's the best thing to take?'. Not for advice they give to others (\"if you're thinking about starting minoxidil, just buy it\").",
   SOCIAL_STIGMA:
     "Comments from others, dating, work, hiding it, feeling judged.",
   OTHER:

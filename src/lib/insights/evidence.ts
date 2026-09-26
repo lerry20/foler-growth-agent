@@ -54,17 +54,32 @@ export function quoteAppears(quote: string, text: string): boolean {
 }
 
 const NEG = "(?:no|not|zero|never|none|didn'?t|did not|haven'?t|have not|hasn'?t|has not|without|nor|free of|thankfully|luckily|fortunately)";
+/** A risk they might get, not something they have: "there's a chance of…", "it can cause…". */
+const HYPOTHETICAL = /\b(?:(?:a |the |small |slight |low )?(?:chance|risk|possibility|potential|likelihood) of|(?:can|could|might|may|will) (?:cause|give|lead to|result in|include)|possible side)\b/i;
+/** Someone else's words or a question to others, not this person's own case. */
+const OTHERS_WORDS = /\b(?:he|she|they|doctor|derm(?:atologist)?|dr\.?|gp|physician|my (?:mom|mum|dad|wife|husband|partner|friend)) (?:thinks?|said|says|believes?|told me|mentioned|suggested|reckons?)\b|\b(?:did|do|does|have|has|has anyone|did anyone) (?:you|anyone|anybody|any of you)\b/i;
 const DENIAL: Partial<Record<StruggleTag, RegExp[]>> = {
   SIDE_EFFECTS: [
     new RegExp(`\\b${NEG}\\b[^.?!]{0,40}\\bside[- ]?effects?\\b`, "i"),
     /\bside[- ]?effects?\b[^.?!]{0,20}\b(none|at all|whatsoever|zero|free)\b/i,
     new RegExp(`\\b${NEG}\\b[^.?!]{0,30}\\b(?:sides|sexual sides|issues with (?:libido|erections?))\\b`, "i"),
+    /\b(?:going|all|everything(?:'s| is)|so far(?:,)? so) (?:smooth(?:ly)?|good|fine|well|great|ok(?:ay)?)\b|\bno (?:issues|problems|complaints)\b/i,
+    /\b(?:minimi[sz]e|avoid|prevent|reduce|lower the (?:risk|chance) of) (?:the |any |potential |possible )?side[- ]?effects?\b/i,
+    HYPOTHETICAL,
+    OTHERS_WORDS,
   ],
   COST: [/\b(?:can|could) afford\b(?![^.?!]{0,20}\bnot\b)/i, /\bcost (?:isn'?t|is not|wasn'?t) (?:an issue|a problem|a concern)\b/i],
-  EMOTIONAL_DISTRESS: [/\b(?:not|never) (?:too |that |really )?(?:worried|anxious|stressed|bothered|depressed)\b/i],
+  EMOTIONAL_DISTRESS: [
+    /\b(?:not|never) (?:too |that |really )?(?:worried|anxious|stressed|bothered|depressed)\b/i,
+    /\b(?:due to|caused by|because of|down to|related to|linked to|triggered by|blam\w+ (?:it )?on|result of) (?:the |my |chronic |general )?(?:stress|anxiety|depression)\b/i,
+    /\b(?:generally|naturally|always been|kind of|a bit of|quite) (?:an? )?(?:generally )?anxious(?: person)?\b/i,
+    HYPOTHETICAL,
+    OTHERS_WORDS,
+  ],
+  PRODUCT_CHOICE: [/\bif you(?:'re| are)\b|\b(?:anyone|those|people) (?:who(?:'s| is| are)|that(?:'s| is| are)) (?:thinking|considering|debating|on the fence)\b|\bmy advice\b/i],
 };
 
-/** The quote says the opposite of the struggle ("no side effects", "thankfully none"). */
+/** The quote says the opposite of the struggle ("no side effects", "thankfully none"), or it is not this person's own current case. */
 export function quoteDenies(tag: StruggleTag, quote: string): boolean {
   return (DENIAL[tag] ?? []).some((re) => re.test(quote));
 }
