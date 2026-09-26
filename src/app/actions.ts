@@ -9,6 +9,8 @@ import { qualifyConversation } from "@/lib/ai/analyze";
 import { setSetting } from "@/lib/settings";
 import { resumeOutbound } from "@/lib/health";
 import { importConversationFromText, importConversationFromUrl } from "@/lib/reddit/manualImport";
+import type { SpeaksAbout } from "@prisma/client";
+import { reviewVoice, clearReview, SPEAKS_ABOUT_LABELS } from "@/lib/voices/review";
 
 const REDDIT_BLOCKED = /403|429|blocked|rate limited|forbidden/i;
 const REDDIT_BLOCKED_MSG = "Reddit refuses requests from this server — this runs from the local agent every 30 min instead.";
@@ -177,6 +179,21 @@ export async function regenerateSynthesisAction() {
   return { message: md.startsWith("Synthesis unavailable") ? md : "Key findings rewritten from the current data." };
 }
 
+
+export async function reviewVoiceAction(voiceId: string, speaksAbout: SpeaksAbout, inScope: boolean) {
+  if (!(speaksAbout in SPEAKS_ABOUT_LABELS)) throw new Error("Unknown verdict");
+  await reviewVoice(voiceId, { speaksAbout, inScope: Boolean(inScope) });
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  return { message: `Saved: ${SPEAKS_ABOUT_LABELS[speaksAbout].label}${speaksAbout === "OWN_CASE" && !inScope ? " (not hair/scalp)" : ""}` };
+}
+
+export async function clearVoiceReviewAction(voiceId: string) {
+  await clearReview(voiceId);
+  revalidatePath("/audit");
+  revalidatePath("/insights");
+  return { message: "Your verdict removed — back to the model's decision." };
+}
 
 export async function runCycleNowAction() {
   const { runScheduledCycle } = await import("@/lib/scheduler");

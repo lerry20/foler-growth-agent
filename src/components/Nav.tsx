@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, BarChart3, Lightbulb, Settings, Send } from "lucide-react";
+import { Home, Users, BarChart3, Lightbulb, Settings, Send, ClipboardCheck } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home },
   { href: "/outreach", label: "Outreach", icon: Send },
   { href: "/people", label: "People", icon: Users },
   { href: "/insights", label: "Insights", icon: Lightbulb },
+  { href: "/audit", label: "Audit", icon: ClipboardCheck },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -46,7 +47,7 @@ export function SideNav() {
 export function BottomNav() {
   const path = usePathname();
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden [padding-bottom:env(safe-area-inset-bottom)]">
+    <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-7 border-t border-zinc-200 bg-white/95 backdrop-blur md:hidden [padding-bottom:env(safe-area-inset-bottom)]">
       {NAV.map((n) => {
         const active = isActive(path, n.href);
         return (

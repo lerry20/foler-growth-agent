@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { STRUGGLE_TAGS, STRUGGLE_LABELS, type StruggleTag } from "./taxonomy";
 import type { StruggleEvidence } from "./evidence";
+import { effective, isCounted } from "@/lib/voices/review";
 
 export interface SourceExample {
   title: string;
@@ -179,17 +180,31 @@ export async function computeInsights(opts?: { includeMock?: boolean; sinceDays?
     prisma.communityConfig.findMany({ where: { enabled: true }, select: { name: true } }),
     prisma.voice.findMany({
       where: { conversation: where },
-      select: { role: true, speaksAbout: true, inScope: true, gatedAt: true, needsReview: true },
+      select: {
+        role: true,
+        speaksAbout: true,
+        inScope: true,
+        gatedAt: true,
+        needsReview: true,
+        review: { select: { speaksAbout: true, inScope: true } },
+      },
     }),
   ]);
+  // A human verdict overrides the model; a voice is decided if either exists.
+  const judged = voiceRows.map((v) => {
+    const e = effective(v);
+    const decided = e.source === "human" || (v.gatedAt !== null && !v.needsReview);
+    return { role: v.role, decided, counted: decided && isCounted(e), human: e.source === "human" };
+  });
   const voices = {
-    total: voiceRows.length,
-    ops: voiceRows.filter((v) => v.role === "OP").length,
-    commenters: voiceRows.filter((v) => v.role === "COMMENTER").length,
-    ownCase: voiceRows.filter((v) => v.speaksAbout === "OWN_CASE" && v.inScope === true).length,
-    ownCaseCommenters: voiceRows.filter((v) => v.role === "COMMENTER" && v.speaksAbout === "OWN_CASE" && v.inScope === true).length,
-    excluded: voiceRows.filter((v) => v.gatedAt && !(v.speaksAbout === "OWN_CASE" && v.inScope === true) && !v.needsReview).length,
-    pending: voiceRows.filter((v) => !v.gatedAt || v.needsReview).length,
+    total: judged.length,
+    ops: judged.filter((v) => v.role === "OP").length,
+    commenters: judged.filter((v) => v.role === "COMMENTER").length,
+    ownCase: judged.filter((v) => v.counted).length,
+    ownCaseCommenters: judged.filter((v) => v.role === "COMMENTER" && v.counted).length,
+    excluded: judged.filter((v) => v.decided && !v.counted).length,
+    pending: judged.filter((v) => !v.decided).length,
+    humanChecked: judged.filter((v) => v.human).length,
   };
   const rows: InsightRow[] = convos.map((c) => ({
     id: c.id,

@@ -231,12 +231,30 @@ model Voice {
   classifierVersion String       @default("v2")
   struggleEvidence  Json         @default("[]")
   needsReview       Boolean      @default(false)
+  review            VoiceReview?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   @@unique([conversationId, author])
   @@index([speaksAbout, inScope])
   @@index([needsReview])
+}
+
+/// A human's verdict on a voice. Overrides the model in Insights and is the golden set
+/// every classifier version is scored against. The model's decision at review time is kept.
+model VoiceReview {
+  id               String       @id @default(cuid())
+  voiceId          String       @unique
+  voice            Voice        @relation(fields: [voiceId], references: [id], onDelete: Cascade)
+  speaksAbout      SpeaksAbout
+  inScope          Boolean
+  note             String       @default("")
+  modelSpeaksAbout SpeaksAbout?
+  modelInScope     Boolean?
+  modelProvider    String?
+  reviewedBy       String       @default("dashboard")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
 
 model Action {
